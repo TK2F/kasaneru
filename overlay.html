@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Kasaneru Overlay</title>
+<link id="custom-css" rel="stylesheet" href="">
+<style>
+/* Viewport = OBS Browser Source の幅・高さ。中身は #lt-stage で 1920×1080 論理座標に統一 */
+html, body {
+  margin: 0; padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: system-ui, 'Segoe UI', sans-serif;
+}
+
+#lt-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: 0 0;
+  overflow: hidden;
+}
+:root {
+  --acc: #e8002d;
+  --card-bg: rgba(8,8,16,0.92);
+  --text: #ffffff;
+  --sub: rgba(255,255,255,0.42);
+  --bar-w: 4px;
+  --pip-done: rgba(232,0,45,0.50);
+  --pip-cur: #e8002d;
+}
+
+#chapter-wrap, #chapter-wrap2, #titlecard-wrap, #titlecard-wrap2, #img-wrap, #img-wrap2, .img-group-wrap {
+  position: absolute;
+  opacity: 0;
+  transform: translateX(-60px);
+  will-change: transform, opacity;
+}
+#chapter-wrap { max-width: 800px; z-index: 10; }
+#titlecard-wrap { max-width: 700px; z-index: 20; }
+#img-wrap { z-index: 30; }
+.img-group-wrap { z-index: 30; }
+.img-group-wrap img {
+  display: block; max-width: none; height: auto;
+  border-radius: 4px; box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+
+.pos-bl { bottom: 80px; left: 80px; top: auto; right: auto; }
+.pos-br { bottom: 80px; right: 80px; top: auto; left: auto; }
+.pos-tl { top: 80px; left: 80px; bottom: auto; right: auto; }
+.pos-tr { top: 80px; right: 80px; bottom: auto; left: auto; }
+
+.ov-badge-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ov-badge-tag {
+  font-size: 18px; font-weight: 800;
+  letter-spacing: 0.18em; text-transform: uppercase; display: inline-block;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+.ov-badge-num {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px; color: rgba(255,255,255,0.35);
+}
+.ov-pips { display: flex; gap: 4px; margin-left: 6px; flex-wrap: wrap; }
+.ov-pip {
+  width: 24px; height: 4px; background: rgba(255,255,255,0.12);
+  border-radius: 2px; transition: background 0.3s, width 0.3s;
+}
+.ov-pip.done { background: var(--pip-done); }
+.ov-pip.cur  { width: 32px; background: var(--pip-cur); }
+.ov-card {
+  position: relative; max-width: 800px;
+  padding: 20px 36px 18px 20px;
+  background: var(--card-bg);
+  border-left: var(--bar-w) solid var(--acc);
+  border-radius: 0 4px 4px 0;
+}
+.ov-title {
+  font-size: 48px; font-weight: 900; line-height: 1.2;
+  margin: 0; white-space: pre-line; color: var(--text);
+}
+.ov-sub {
+  font-size: 28px; font-weight: 400; line-height: 1.3;
+  margin: 8px 0 0 0; white-space: pre-line; color: var(--sub);
+}
+
+
+.tc-card {
+  position: relative; padding: 20px 36px 18px 20px;
+  background: var(--card-bg); border-left: var(--bar-w) solid var(--acc);
+}
+.tc-label-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.tc-label-tag {
+  display: inline-block;
+  font-size: 26px; font-weight: 800; letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+.tc-title {
+  font-size: 36px; font-weight: 900; line-height: 1.2;
+  color: var(--text); white-space: pre-line;
+}
+.lt-jp, .lt-en { display: inline; }
+
+#img-wrap img {
+  display: block;
+  max-width: none;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+
+#preview-layer {
+  position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+  pointer-events: none; z-index: 9998;
+}
+.preview-grid-lines {
+  position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+  box-sizing: border-box; pointer-events: none; opacity: 0.22;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.5) 0, rgba(255,255,255,0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.5) 0, rgba(255,255,255,0.5) 1px, transparent 1px);
+  background-size: 640px 100%, 100% 360px;
+  background-position: 0 0, 0 0;
+}
+.preview-box {
+  position: absolute; border: 2px dashed rgba(0, 255, 200, 0.85);
+  background: rgba(0, 255, 200, 0.06);
+  box-sizing: border-box;
+  min-width: 40px; min-height: 28px;
+  font-size: 11px; color: rgba(0, 255, 200, 0.95);
+  padding: 2px 6px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+@keyframes slideInBadge {
+  0%   { opacity: 0; transform: translateX(-40px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInCard {
+  0%   { opacity: 0; transform: translateX(-50px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeUpTitle {
+  0%   { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeUpSub {
+  0%   { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideOut {
+  0%   { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(-60px); }
+}
+@keyframes fadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes fadeOut {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+.anim-show-wrap  { animation: slideInCard 0.5s cubic-bezier(.16,1,.3,1) forwards; }
+.anim-show-badge { animation: slideInBadge 0.5s cubic-bezier(.16,1,.3,1) forwards; }
+.anim-show-card  { animation: slideInCard 0.5s cubic-bezier(.16,1,.3,1) 0.05s forwards; opacity: 0; }
+.anim-show-title { animation: fadeUpTitle 0.35s ease-out 0.3s forwards; opacity: 0; }
+.anim-show-sub   { animation: fadeUpSub 0.3s ease-out 0.42s forwards; opacity: 0; }
+.anim-hide       { animation: slideOut 0.28s ease-in forwards; }
+.anim-fade-in    { animation: fadeIn 0.28s ease-out forwards; transform: none !important; }
+.anim-fade-out   { animation: fadeOut 0.22s ease-in forwards; transform: none !important; }
+
+/* ═══ Image group animations (fully isolated from chapter/tc/app) ═══ */
+@keyframes igFadeIn  { 0% { opacity:0; } 100% { opacity:1; } }
+@keyframes igFadeOut { 0% { opacity:1; } 100% { opacity:0; } }
+@keyframes igSlideInL  { 0% { opacity:0; transform:var(--ig-base-tf) translateX(-60px); } 100% { opacity:1; transform:var(--ig-base-tf); } }
+@keyframes igSlideInR  { 0% { opacity:0; transform:var(--ig-base-tf) translateX(60px); }  100% { opacity:1; transform:var(--ig-base-tf); } }
+@keyframes igSlideInU  { 0% { opacity:0; transform:var(--ig-base-tf) translateY(-60px); } 100% { opacity:1; transform:var(--ig-base-tf); } }
+@keyframes igSlideInD  { 0% { opacity:0; transform:var(--ig-base-tf) translateY(60px); }  100% { opacity:1; transform:var(--ig-base-tf); } }
+@keyframes igSlideOutL { 0% { opacity:1; transform:var(--ig-base-tf); } 100% { opacity:0; transform:var(--ig-base-tf) translateX(-60px); } }
+@keyframes igSlideOutR { 0% { opacity:1; transform:var(--ig-base-tf); } 100% { opacity:0; transform:var(--ig-base-tf) translateX(60px); } }
+@keyframes igSlideOutU { 0% { opacity:1; transform:var(--ig-base-tf); } 100% { opacity:0; transform:var(--ig-base-tf) translateY(-60px); } }
+@keyframes igSlideOutD { 0% { opacity:1; transform:var(--ig-base-tf); } 100% { opacity:0; transform:var(--ig-base-tf) translateY(60px); } }
+/* Float applies to img INSIDE the wrap — no transform conflict with wrapper positioning */
+@keyframes igFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(var(--float-mag, 15px)); } }
+.ig-float { animation: igFloat var(--float-speed, 3s) infinite ease-in-out; will-change: transform; }
+
+/* ═══ App iframes ═══ */
+.app-frame-wrap {
+  position: absolute;
+  opacity: 0;
+  will-change: transform, opacity;
+  overflow: hidden;
+  pointer-events: none;
+}
+.app-frame-wrap.app-interactive { pointer-events: auto; }
+.app-frame-wrap.app-scrollable { overflow: auto; }
+.app-frame-wrap.app-fullsize {
+  left: 0 !important; top: 0 !important;
+  right: auto !important; bottom: auto !important;
+  width: 1920px !important; height: 1080px !important;
+}
+.app-frame-wrap iframe {
+  border: none;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: transparent;
+}
+.app-frame-wrap.anim-app-slide-in {
+  animation: appSlideIn 0.5s cubic-bezier(.16,1,.3,1) forwards;
+}
+.app-frame-wrap.anim-app-slide-out {
+  animation: appSlideOut 0.28s ease-in forwards;
+}
+/* App-specific slide keyframes using --app-base-tf to preserve scale/position transforms */
+@keyframes appSlideIn {
+  0%   { opacity: 0; transform: var(--app-base-tf, none) translateX(-50px); }
+  100% { opacity: 1; transform: var(--app-base-tf, none); }
+}
+@keyframes appSlideOut {
+  0%   { opacity: 1; transform: var(--app-base-tf, none); }
+  100% { opacity: 0; transform: var(--app-base-tf, none) translateX(-60px); }
+}
+.app-frame-wrap.anim-app-fade-in {
+  animation: fadeIn 0.35s ease-out forwards;
+}
+.app-frame-wrap.anim-app-fade-out {
+  animation: fadeOut 0.22s ease-in forwards;
+}
+.app-frame-wrap.anim-app-none-in {
+  opacity: 1;
+}
+.app-frame-wrap.anim-app-none-out {
+  opacity: 0;
+}
+</style>
+</head>
+<body>
+<div id="lt-stage">
+<div id="preview-layer"></div>
+
+<!-- overlay-error removed: broadcast screen must never show error messages -->
+
+<div id="chapter-wrap" class="pos-bl">
+  <div id="badge-wrap" class="ov-badge-wrap">
+    <span id="badge-tag" class="ov-badge-tag">CH.1</span>
+    <span id="badge-num" class="ov-badge-num"></span>
+    <span id="pips" class="ov-pips"></span>
+  </div>
+  <div id="card" class="ov-card">
+    <div id="title" class="ov-title"></div>
+    <div id="sub" class="ov-sub"></div>
+
+  </div>
+</div>
+
+<div id="chapter-wrap2" class="pos-bl" style="opacity:0; transform: translateX(-60px);">
+  <div id="badge-wrap2" class="ov-badge-wrap">
+    <span id="badge-tag2" class="ov-badge-tag">CH.1</span>
+    <span id="badge-num2" class="ov-badge-num"></span>
+    <span id="pips2" class="ov-pips"></span>
+  </div>
+  <div id="card2" class="ov-card">
+    <div id="title2" class="ov-title"></div>
+    <div id="sub2" class="ov-sub"></div>
+
+  </div>
+</div>
+
+<div id="titlecard-wrap" class="pos-tl">
+  <div class="tc-label-stack" id="tc-label-stack"></div>
+  <div class="tc-card" id="tc-card">
+    <div class="tc-title" id="tc-title"></div>
+  </div>
+</div>
+
+<div id="titlecard-wrap2" class="pos-tl" style="opacity:0; transform: translateX(-60px);">
+  <div class="tc-label-stack" id="tc-label-stack-2"></div>
+  <div class="tc-card" id="tc-card-2">
+    <div class="tc-title" id="tc-title-2"></div>
+  </div>
+</div>
+
+<div id="img-wrap" class="pos-bl">
+    <img id="img-display" src="" alt="" draggable="false">
+</div>
+
+<div id="img-wrap2" class="pos-bl" style="opacity:0; transform: translateX(-60px);">
+    <img id="img-display-2" src="" alt="" draggable="false">
+</div>
+
+<div id="img-group-container"></div>
+
+<div id="app-container"></div>
+ </div>
+<script>
+(function() {
+  var TRANS_MS = 380;
+
+  var ltStage = document.getElementById('lt-stage');
+  function applyStageScale() {
+    if (!ltStage) return;
+    var vw = window.innerWidth || 0;
+    var vh = window.innerHeight || 0;
+    if (vw < 2 || vh < 2) return;
+    var s = Math.min(vw / 1920, vh / 1080);
+    var tx = Math.round((vw - 1920 * s) * 0.5 * 100) * 0.01;
+    var ty = Math.round((vh - 1080 * s) * 0.5 * 100) * 0.01;
+    ltStage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
+  }
+
+  var chapters = [], groups = [], currentIndex = 0;
+  var chVisible = false, chAnimating = false;
+  var CANVAS_W = 1920;
+  var CANVAS_H = 1080;
+  var fontSettings = {}, accentColor = '', badgeStyle = 'ch';
+  var skinData = null; /* { vars: { '--skin-bg': '...', ... }, name: 'custom' } */
+  var animMode = 'slide';
+  var chapterAnimMode = 'slide';
+  var titleCardAnimMode = 'slide';
+  var imageAnimMode = 'slide';
+  var appAnimMode = 'slide';
+  function normalizeAnimMode(v) {
+    if (v == null || v === '') return 'slide';
+    var m = String(v);
+    if (m === 'dissolve') return 'fade';
+    if (m === 'default') return 'slide';
+    return m;
+  }
+  var chapterPosition = 'bl', titleCardPosition = 'tl', imagePosition = 'bl';
+  var cardBgColor = '';
+  var chapterGlobalOx = 0, chapterGlobalOy = 0;
+  var textAlign = 'left';
+  var layerOrder = ['chapter', 'titlecard', 'image', 'app'];
+
+  var tcVisible = false, tcAnimating = false;
+  var tcOffsetX = 0, tcOffsetY = 0;
+  var tcGlobalOx = 0, tcGlobalOy = 0;
+  var titleCardFont = null;
+  var syncTitleCardWithChapter = true;
+  var labelHidden = false;
+  var tcLabelEmpty = false;
+  var labelSettings = {};
+  var tcLabelBgMode = 'card';
+  var pillColorMode = 'context';
+  var pillBgAlpha = 0.88;
+  var pillBorderAlpha = 0.55;
+  var labelFontSyncBadge = true;
+  var SURF_REF = 92;
+  var surfaceMasterPct = 88;
+  var surfOvPillBg = -1;
+  var surfOvPillBorder = -1;
+  var surfOvChapterCard = -1;
+  var surfOvTitleCard = -1;
+
+  var imgVisible = false, imgAnimating = false;
+  var imgGlobalOx = 0, imgGlobalOy = 0;
+  var lastImgOx = 0, lastImgOy = 0;
+  var imageFitCanvasDefault = true;
+  var lastImgShowArgs = null;
+
+  /* ═══ Multi-group image system ═══ */
+  var imgGroupFrames = {};   /* { groupId: { wrap, img, visible, animating, swapTimer, lastArgs, groupData } } */
+  var imgGroupContainer = null; /* set after DOM ready */
+
+  var pendingTitleCard = null;
+  var pendingImg = null;
+  var tcSwapTimer = null;
+  var imgSwapTimer = null;
+
+  applyStageScale();
+  if (window.addEventListener) {
+    window.addEventListener('resize', applyStageScale);
+    window.addEventListener('load', applyStageScale);
+  }
+  setTimeout(applyStageScale, 100);
+  setTimeout(applyStageScale, 500);
+
+  var wrap       = document.getElementById('chapter-wrap');
+  var badgeWrap  = document.getElementById('badge-wrap');
+  var badgeTag   = document.getElementById('badge-tag');
+  var badgeNum   = document.getElementById('badge-num');
+  var pipsEl     = document.getElementById('pips');
+  var card       = document.getElementById('card');
+  var titleEl    = document.getElementById('title');
+  var subEl      = document.getElementById('sub');
+
+
+  var wrap2       = document.getElementById('chapter-wrap2');
+  var badgeWrap2  = document.getElementById('badge-wrap2');
+  var badgeTag2   = document.getElementById('badge-tag2');
+  var badgeNum2   = document.getElementById('badge-num2');
+  var pipsEl2     = document.getElementById('pips2');
+  var card2       = document.getElementById('card2');
+  var titleEl2    = document.getElementById('title2');
+  var subEl2      = document.getElementById('sub2');
+
+  /* theme-css link removed — styling via CSS variables + custom-css only */
+  var customLink = document.getElementById('custom-css');
+
+  var tcWrap  = document.getElementById('titlecard-wrap');
+  var tcLabelStack = document.getElementById('tc-label-stack');
+  var tcCard  = document.getElementById('tc-card');
+  var tcTitle = document.getElementById('tc-title');
+
+  var tcWrap2  = document.getElementById('titlecard-wrap2');
+  var tcLabelStack2 = document.getElementById('tc-label-stack-2');
+  var tcCard2  = document.getElementById('tc-card-2');
+  var tcTitle2 = document.getElementById('tc-title-2');
+
+  var imgWrap    = document.getElementById('img-wrap');
+  var imgDisplay = document.getElementById('img-display');
+  var imgWrap2   = document.getElementById('img-wrap2');
+  var imgDisplay2 = document.getElementById('img-display-2');
+  var previewLayer = document.getElementById('preview-layer');
+  var overlayError = document.getElementById('overlay-error');
+  imgGroupContainer = document.getElementById('img-group-container');
+
+  function clamp100(n) {
+    var x = typeof n === 'number' ? n : parseInt(n, 10);
+    if (isNaN(x)) x = 88;
+    if (x < 0) x = 0;
+    if (x > 100) x = 100;
+    return x;
+  }
+  function effChapterSurfPct() {
+    if (typeof surfOvChapterCard === 'number' && surfOvChapterCard >= 0) return clamp100(surfOvChapterCard);
+    return clamp100(surfaceMasterPct);
+  }
+  function effTitleSurfPct() {
+    if (typeof surfOvTitleCard === 'number' && surfOvTitleCard >= 0) return clamp100(surfOvTitleCard);
+    return clamp100(surfaceMasterPct);
+  }
+  function effPillBgPct() {
+    if (typeof surfOvPillBg === 'number' && surfOvPillBg >= 0) return clamp100(surfOvPillBg);
+    return clamp100(surfaceMasterPct);
+  }
+  function effPillBorderPct() {
+    if (typeof surfOvPillBorder === 'number' && surfOvPillBorder >= 0) return clamp100(surfOvPillBorder);
+    return clamp100(Math.min(100, Math.round(surfaceMasterPct * 0.88 + 8)));
+  }
+  function effPillBg01() { return effPillBgPct() / 100; }
+  function effPillBorder01() { return effPillBorderPct() / 100; }
+  function parseCssRgba(s) {
+    var m = String(s || '').replace(/\s+/g, '').match(/^rgba?\((\d+),(\d+),(\d+)(?:,([0-9.]+))?\)$/i);
+    if (!m) return null;
+    return { r: parseInt(m[1], 10), g: parseInt(m[2], 10), b: parseInt(m[3], 10),
+      a: m[4] !== undefined ? parseFloat(m[4]) : 1 };
+  }
+  function clamp01(x) {
+    if (isNaN(x)) return 1;
+    if (x < 0) return 0;
+    if (x > 1) return 1;
+    return x;
+  }
+  function adjustSurfaceAlphaOnColor(raw, whichTitle) {
+    var ref = SURF_REF;
+    var eff = whichTitle ? effTitleSurfPct() : effChapterSurfPct();
+    var mult = eff / ref;
+    var s = String(raw || '').trim();
+    if (!s) return '';
+    var p = parseCssRgba(s);
+    if (p) {
+      var na = clamp01(p.a * mult);
+      return 'rgba(' + p.r + ',' + p.g + ',' + p.b + ',' + na + ')';
+    }
+    if (s.charAt(0) === '#') {
+      var h = s;
+      if (h.length === 9 && h.charAt(0) === '#') {
+        var r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16);
+        var a8 = parseInt(h.slice(7, 9), 16);
+        var a0 = isNaN(a8) ? 1 : a8 / 255;
+        var na = clamp01(a0 * mult);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + na + ')';
+      }
+      if (h.length === 7) {
+        var r2 = parseInt(h.slice(1, 3), 16), g2 = parseInt(h.slice(3, 5), 16), b2 = parseInt(h.slice(5, 7), 16);
+        if (isNaN(r2) || isNaN(g2) || isNaN(b2)) return s;
+        var na2 = clamp01(mult * (eff / 100));
+        return 'rgba(' + r2 + ',' + g2 + ',' + b2 + ',' + na2 + ')';
+      }
+      if (h.length === 4) {
+        var r3 = parseInt(h.charAt(1) + h.charAt(1), 16), g3 = parseInt(h.charAt(2) + h.charAt(2), 16), b3 = parseInt(h.charAt(3) + h.charAt(3), 16);
+        var na3 = clamp01(mult * (eff / 100));
+        return 'rgba(' + r3 + ',' + g3 + ',' + b3 + ',' + na3 + ')';
+      }
+    }
+    return s;
+  }
+  function forEachTcLabelEl(fn) {
+    if (!tcLabelStack) return;
+    var els = tcLabelStack.querySelectorAll('.tc-label-tag');
+    for (var i = 0; i < els.length; i++) fn(els[i], i);
+  }
+  function forEachTcLabelEl2(fn) {
+    if (!tcLabelStack2) return;
+    var els = tcLabelStack2.querySelectorAll('.tc-label-tag');
+    for (var i = 0; i < els.length; i++) fn(els[i], i);
+  }
+  function encodePathForSrc(path) {
+    if (!path) return '';
+    var p = String(path).trim().replace(/\\/g, '/');
+    if (/^https?:\/\//i.test(p)) return p;
+    if (/^file:\/\//i.test(p)) return p;
+    /* UNC \\server\share\… → file://server/share/… */
+    if (p.indexOf('//') === 0) {
+      var up = p.split('/').filter(function(s) { return s.length; });
+      if (!up.length) return '';
+      return 'file://' + up.map(function(seg) { return encodeURIComponent(seg); }).join('/');
+    }
+    var drive = p.match(/^([a-zA-Z]:)(?:\/(.*))?$/);
+    if (drive) {
+      var rest = drive[2] || '';
+      var segs = rest.split('/').filter(function(s) { return s.length; });
+      var enc = segs.map(function(seg) { return encodeURIComponent(seg); }).join('/');
+      return 'file:///' + drive[1] + (enc ? '/' + enc : '');
+    }
+    try {
+      return new URL(p, window.location.href).href;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  var channel;
+  try { channel = new BroadcastChannel('lt_chapter'); } catch(e) {
+    console.warn('[kasaneru] BroadcastChannel unavailable. Check OBS settings / origin.');
+    return;
+  }
+
+  channel.onmessage = function(e) {
+    try { handleMsg(e.data); } catch(err) {}
+  };
+
+  if (window.addEventListener) {
+    window.addEventListener('message', function(ev) {
+      var d = ev && ev.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.cmd !== 'lt_overlay_control') return;
+      var a = String(d.action || '').toLowerCase();
+      if (a === 'hide_all') {
+        hideChapter();
+        hideTitleCard();
+        hideImg();
+        handleImgGroupClear();
+        handleAppClear();
+      } else if (a === 'hide_chapter') {
+        hideChapter();
+      } else if (a === 'hide_titlecard') {
+        hideTitleCard();
+      } else if (a === 'hide_image') {
+        hideImg();
+      } else if (a === 'clear_apps') {
+        handleAppClear();
+      }
+    });
+  }
+
+  var hasSync = false;
+  var reqRetryTimer = null;
+  var reqRetryCount = 0;
+  function stopReqRetry() {
+    if (reqRetryTimer) { clearInterval(reqRetryTimer); reqRetryTimer = null; }
+  }
+  function scheduleReqRetry() {
+    if (hasSync) { stopReqRetry(); return; }
+    var delay = reqRetryCount < 20 ? 500 : 3000;
+    reqRetryTimer = setTimeout(function() {
+      if (hasSync) { stopReqRetry(); return; }
+      reqRetryCount++;
+      try { channel.postMessage({ cmd: 'req' }); } catch(e) {}
+      if (reqRetryCount === 20) {
+        showOverlayError('No sync from dock. Open dock.html and check same-origin / Local file setting.');
+      }
+      scheduleReqRetry();
+    }, delay);
+  }
+  function startReqRetry() {
+    stopReqRetry();
+    reqRetryCount = 0;
+    try { channel.postMessage({ cmd: 'req' }); } catch(e) {}
+    scheduleReqRetry();
+  }
+  startReqRetry();
+
+  function handleMsg(d) {
+    if (!d || !d.cmd) return;
+
+    if (d.cmd === 'sync') {
+      hasSync = true;
+      stopReqRetry();
+      hideOverlayError();
+      try { channel.postMessage({ cmd: 'ack' }); } catch(e) {}
+      var prevIdx = currentIndex;
+      chapters = Array.isArray(d.chapters) ? d.chapters : [];
+      groups = Array.isArray(d.groups) ? d.groups : [];
+      currentIndex = typeof d.current === 'number' ? d.current : 0;
+      if (currentIndex < 0 || currentIndex >= chapters.length) currentIndex = 0;
+      fontSettings = d.font || {};
+      accentColor = d.accentColor || '';
+      if (d.skin && typeof d.skin === 'object') skinData = d.skin; else skinData = null;
+      animMode = normalizeAnimMode(d.animMode);
+      chapterAnimMode = normalizeAnimMode(d.chapterAnimMode || d.animMode);
+      titleCardAnimMode = normalizeAnimMode(d.titleCardAnimMode || d.animMode);
+      imageAnimMode = normalizeAnimMode(d.imageAnimMode || d.animMode);
+      appAnimMode = normalizeAnimMode(d.appAnimMode || 'default');
+      if (typeof d.barWidthPx === 'number') {
+        try { document.documentElement.style.setProperty('--bar-w', d.barWidthPx + 'px'); } catch(e) {}
+      }
+      badgeStyle = d.badgeStyle || 'ch';
+      if (d.chapterPosition !== undefined || d.titleCardPosition !== undefined || d.imagePosition !== undefined) {
+        chapterPosition = d.chapterPosition || 'bl';
+        titleCardPosition = d.titleCardPosition || 'tl';
+        imagePosition = d.imagePosition || 'bl';
+      } else {
+        var pLegacy = d.position || 'bl';
+        chapterPosition = pLegacy;
+        titleCardPosition = pLegacy;
+        imagePosition = pLegacy;
+      }
+      cardBgColor = d.cardBgColor || '';
+      chapterGlobalOx = typeof d.chapterGlobalOx === 'number' ? d.chapterGlobalOx : 0;
+      chapterGlobalOy = typeof d.chapterGlobalOy === 'number' ? d.chapterGlobalOy : 0;
+      textAlign = d.textAlign || 'left';
+      layerOrder = sanitizeLayerOrder(d.layerOrder);
+      tcGlobalOx = typeof d.titleCardGlobalOx === 'number' ? d.titleCardGlobalOx : 0;
+      tcGlobalOy = typeof d.titleCardGlobalOy === 'number' ? d.titleCardGlobalOy : 0;
+      imgGlobalOx = typeof d.imageGlobalOx === 'number' ? d.imageGlobalOx : 0;
+      imgGlobalOy = typeof d.imageGlobalOy === 'number' ? d.imageGlobalOy : 0;
+      if (typeof d.imageFitCanvasDefault === 'boolean') imageFitCanvasDefault = d.imageFitCanvasDefault;
+      titleCardFont = d.titleCardFont || null;
+      syncTitleCardWithChapter = d.syncTitleCardWithChapter !== false;
+      labelHidden = !!d.labelHidden;
+      labelSettings = d.labelSettings || {};
+      tcLabelBgMode = d.tcLabelBgMode === 'accent' ? 'accent' : 'card';
+      pillColorMode = d.pillColorMode === 'accent' ? 'accent' : 'context';
+      surfaceMasterPct = typeof d.surfaceMasterPct === 'number' ? clamp100(d.surfaceMasterPct) : 88;
+      surfOvPillBg = typeof d.surfOvPillBg === 'number' ? d.surfOvPillBg : -1;
+      surfOvPillBorder = typeof d.surfOvPillBorder === 'number' ? d.surfOvPillBorder : -1;
+      surfOvChapterCard = typeof d.surfOvChapterCard === 'number' ? d.surfOvChapterCard : -1;
+      surfOvTitleCard = typeof d.surfOvTitleCard === 'number' ? d.surfOvTitleCard : -1;
+      if (typeof d.pillBgAlpha === 'number') pillBgAlpha = d.pillBgAlpha;
+      if (typeof d.pillBorderAlpha === 'number') pillBorderAlpha = d.pillBorderAlpha;
+      labelFontSyncBadge = d.labelFontSyncBadge !== false;
+      /* theme selector removed — default style embedded in CSS */
+      if (d.customCss) customLink.setAttribute('href', d.customCss);
+      else customLink.setAttribute('href', '');
+      applyLayerZ();
+      applyItemOffset(wrap, chapterPosition, chapterGlobalOx, chapterGlobalOy);
+      applyItemOffset(wrap2, chapterPosition, chapterGlobalOx, chapterGlobalOy);
+      applyItemOffset(tcWrap, titleCardPosition, tcGlobalOx + tcOffsetX, tcGlobalOy + tcOffsetY);
+      applyItemOffset(tcWrap2, titleCardPosition, tcGlobalOx + tcOffsetX, tcGlobalOy + tcOffsetY);
+      applyItemOffset(imgWrap, imagePosition, imgGlobalOx + lastImgOx, imgGlobalOy + lastImgOy);
+      applyItemOffset(imgWrap2, imagePosition, imgGlobalOx + lastImgOx, imgGlobalOy + lastImgOy);
+      applyPosClassFor(wrap, 'ch');
+      applyPosClassFor(wrap2, 'ch');
+      applyPosClassFor(tcWrap, 'tc');
+      applyPosClassFor(tcWrap2, 'tc');
+      applyPosClassFor(imgWrap, 'img');
+      applyPosClassFor(imgWrap2, 'img');
+      applyFont(); applyAccent(); applyCardBg(); applyTextAlign();
+      applyTitleCardStyles();
+      if (d.visible) {
+        if (chVisible && prevIdx !== currentIndex) {
+          transitionChapter();
+        } else if (!chVisible) {
+          showChapter();
+        }
+        /* If already visible at same index, do nothing — prevents re-animation on settings sync */
+      } else { hideChapter(); }
+      if (imgVisible && lastImgShowArgs) applyImgLayout(lastImgShowArgs);
+      /* Restore image group positions on sync — skip groups mid-animation */
+      for (var igk in imgGroupFrames) {
+        if (!imgGroupFrames.hasOwnProperty(igk)) continue;
+        var ige = imgGroupFrames[igk];
+        if (ige.visible && ige.groupData && !ige.animating) imgGrpApplyPosition(ige.wrap, ige.groupData);
+      }
+      if (d.imgGroupState) handleImgGroupSync(d);
+      /* Restore app state from sync — only on first sync after page load (prevents re-animation on chapter/tc/img switch) */
+      if (!hasRestoredApps && d.appLive && Array.isArray(d.appItems) && d.appVisibleIds) {
+        hasRestoredApps = true;
+        handleAppClear();
+        for (var ai = 0; ai < d.appItems.length; ai++) {
+          var aItem = d.appItems[ai];
+          if (aItem && aItem.id && d.appVisibleIds[aItem.id]) {
+            /* Enrich with accent/theme for sendConfigToAppFrame */
+            var appMsg = {};
+            for (var ak in aItem) { if (aItem.hasOwnProperty(ak)) appMsg[ak] = aItem[ak]; }
+            appMsg.accentColor = accentColor || '';
+            appMsg.theme = d.theme || '';
+            if (skinData) appMsg.skin = skinData;
+            handleAppShow(appMsg);
+          }
+        }
+      }
+    }
+    else if (d.cmd === 'hide') { hideChapter(); }
+
+    else if (d.cmd === 'preview_clear') {
+      previewLayer.innerHTML = '';
+    }
+    else if (d.cmd === 'preview_offsets') {
+      renderPreviewBoxes(d);
+    }
+
+    else if (d.cmd === 'qa_show' || d.cmd === 'titlecard_show') {
+      handleTitleCardShow(d);
+    }
+    else if (d.cmd === 'qa_hide' || d.cmd === 'titlecard_hide') {
+      hideTitleCard();
+    }
+
+    else if (d.cmd === 'img_show') {
+      handleImgShow(d);
+    }
+    else if (d.cmd === 'img_hide') { hideImg(); lastImgShowArgs = null; }
+
+    else if (d.cmd === 'img_group_show') { handleImgGroupShow(d); }
+    else if (d.cmd === 'img_group_hide') { handleImgGroupHide(d); }
+    else if (d.cmd === 'img_group_switch') { handleImgGroupSwitch(d); }
+    else if (d.cmd === 'img_group_update') { handleImgGroupUpdate(d); }
+    else if (d.cmd === 'img_group_clear') { handleImgGroupClear(); }
+
+    else if (d.cmd === 'app_show') { handleAppShow(d); }
+    else if (d.cmd === 'app_config') { handleAppConfig(d); }
+    else if (d.cmd === 'app_hide') { handleAppHide(d.id); }
+    else if (d.cmd === 'app_clear') { handleAppClear(); }
+
+    /* Relay draw commands from dock to all app iframes (draw.html will handle, others ignore) */
+    else if (d.cmd === 'draw_relay' && d.data) {
+      var relayed = 0;
+      for (var aid in appFrames) {
+        var entry = appFrames[aid];
+        if (entry && entry.iframe && entry.iframe.contentWindow) {
+          try { entry.iframe.contentWindow.postMessage({ type: 'lt_draw_cmd', data: d.data }, '*'); relayed++; } catch(ex) {}
+        }
+      }
+      if (relayed === 0) console.warn('[kasaneru] draw_relay: no app iframes found — is draw app shown?');
+    }
+
+    /* Generic app relay: dock app → overlay app iframe */
+    else if (d.cmd === 'app_relay' && d.appId && d.data) {
+      for (var aid in appFrames) {
+        var entry = appFrames[aid];
+        if (entry && entry.iframe && entry.iframe.contentWindow) {
+          try { entry.iframe.contentWindow.postMessage({ type: 'lt_app_cmd', appId: d.appId, data: d.data }, '*'); } catch(ex) {}
+        }
+      }
+    }
+  }
+
+  /* ═══════════ App Frames ═══════════ */
+  var appContainer = document.getElementById('app-container');
+  var appFrames = {}; /* id -> { wrap, iframe, animMode, animGen } */
+  var hasRestoredApps = false; /* true after first sync restores apps — prevents re-animation on subsequent syncs */
+  var APP_MAX_FRAMES = 20; /* safety cap to prevent OBS memory issues */
+
+  function isAllowedAppResolvedUrl(u) {
+    var x = String(u || '').trim().toLowerCase();
+    if (!x) return false;
+    if (x.indexOf('http://') === 0) return true;
+    if (x.indexOf('https://') === 0) return true;
+    if (x.indexOf('file://') === 0) return true;
+    return false;
+  }
+
+  function resolveAppUrl(raw) {
+    var s = String(raw || '').trim().replace(/\\/g, '/');
+    if (!s) return '';
+    if (/^https?:\/\//i.test(s) || /^file:\/\//i.test(s)) {
+      return isAllowedAppResolvedUrl(s) ? s : '';
+    }
+    /* Handle bare Windows drive paths: C:/foo → file:///C:/foo */
+    var drive = s.match(/^([a-zA-Z]:)\//);
+    if (drive) return 'file:///' + s;
+    /* Resolve relative path via string ops (new URL() breaks on file:// UNC paths in some environments) */
+    var base = window.location.href;
+    var baseDir = base.replace(/[?#].*$/, '').replace(/\/[^/]*$/, '/');
+    var resolved = baseDir + s;
+    return isAllowedAppResolvedUrl(resolved) ? resolved : '';
+  }
+
+  function appPosStyle(d) {
+    var pos = d.position || 'tr';
+    if (pos === 'full') return { left: '0px', top: '0px', right: 'auto', bottom: 'auto' };
+    var ox = (d.offsetX || 0);
+    var oy = (d.offsetY || 0);
+    var css = {};
+    /* Horizontal: l=left, r=right, c=center */
+    var h = pos.length === 2 ? pos.charAt(1) : 'r';
+    if (pos === 'cl') h = 'l';
+    else if (pos === 'cc') h = 'c';
+    else if (pos === 'cr') h = 'r';
+    if (h === 'l') { css.left = ox + 'px'; css.right = 'auto'; }
+    else if (h === 'r') { css.right = ox + 'px'; css.left = 'auto'; }
+    else { css.left = 'calc(50% + ' + ox + 'px)'; css.right = 'auto'; }
+    /* Vertical: t=top, b=bottom, c=center */
+    var v = pos.charAt(0);
+    if (pos === 'cl' || pos === 'cc' || pos === 'cr') v = 'c';
+    if (v === 't') { css.top = oy + 'px'; css.bottom = 'auto'; }
+    else if (v === 'b') { css.bottom = oy + 'px'; css.top = 'auto'; }
+    else { css.top = 'calc(50% + ' + oy + 'px)'; css.bottom = 'auto'; }
+    return css;
+  }
+
+  function countActiveAppFrames() {
+    var n = 0;
+    for (var k in appFrames) { if (appFrames.hasOwnProperty(k)) n++; }
+    return n;
+  }
+
+  function applyAppProps(w, d) {
+    /* 3-axis model: displayMode / designMode / interactionMode */
+    var dm = d.displayMode || (d.position === 'full' ? 'fullscreen' : 'widget');
+    var isFull = dm === 'fullscreen';
+    var isHidden = dm === 'hidden';
+    var isInteractive = (d.interactionMode === 'interactive') || !!d.interactive;
+
+    w.classList.toggle('app-fullsize', isFull);
+    w.classList.toggle('app-interactive', isInteractive);
+    w.classList.toggle('app-scrollable', true);
+    w.style.display = isHidden ? 'none' : '';
+
+    if (!isFull && !isHidden) {
+      w.style.width = (d.width || 480) + 'px';
+      w.style.height = (d.height || 320) + 'px';
+      var ps = appPosStyle(d);
+      for (var k in ps) w.style[k] = ps[k];
+    }
+    /* Draw/telestrator app always on top of all layers */
+    var isDrawApp = d.url && String(d.url).indexOf('draw.html') >= 0;
+    w.style.zIndex = isDrawApp ? '9999' : String(d.zLayer || 50);
+    w.style.borderRadius = (d.borderRadius || 0) + 'px';
+
+    /* Scale + center transform */
+    var sc = (d.scale || 100) / 100;
+    var transforms = [];
+    var pos = d.position || 'tr';
+    /* Center positioning needs translate */
+    var h = pos.length === 2 ? pos.charAt(1) : 'r';
+    var v = pos.charAt(0);
+    if (pos === 'cl') { h = 'l'; v = 'c'; }
+    else if (pos === 'cc') { h = 'c'; v = 'c'; }
+    else if (pos === 'cr') { h = 'r'; v = 'c'; }
+    if (h === 'c') transforms.push('translateX(-50%)');
+    if (v === 'c') transforms.push('translateY(-50%)');
+    if (sc !== 1) transforms.push('scale(' + sc + ')');
+    var baseTf = transforms.length ? transforms.join(' ') : 'translateX(0)';
+    w.style.transform = baseTf;
+    w.style.setProperty('--app-base-tf', baseTf);
+    w.style.transformOrigin = (sc !== 1 && !transforms.length) ? appScaleOrigin(pos) : '';
+  }
+
+  function appScaleOrigin(pos) {
+    var map = { tl: 'top left', tc: 'top center', tr: 'top right',
+      cl: 'center left', cc: 'center center', cr: 'center right',
+      bl: 'bottom left', bc: 'bottom center', br: 'bottom right' };
+    return map[pos] || 'center center';
+  }
+
+  function sendConfigToAppFrame(entry, cfg) {
+    if (!entry || !entry.iframe || !entry.iframe.contentWindow || !cfg) return;
+    /* designMode: 'app' → no override, 'accent' → color only, 'theme' → full */
+    var dm = cfg.designMode || (cfg.themeSync ? 'accent' : 'app');
+    if (dm === 'app') return; /* App owns its design, no override */
+    try {
+      var msg = { cmd: 'lt_overlay_config' };
+      if (dm === 'accent' || dm === 'theme') {
+        msg.accent = cfg.accentColor || '';
+        msg.accentColor = cfg.accentColor || '';
+        msg.themeSync = true;
+      }
+      if (dm === 'theme') {
+        msg.theme = cfg.theme || '';
+        /* Skin (kisekae): CSS custom properties + texture URLs */
+        if (cfg.skin) msg.skin = cfg.skin;
+      }
+      entry.iframe.contentWindow.postMessage(msg, '*');
+    } catch(e) {}
+  }
+
+  function handleAppShow(d) {
+    if (!d || !d.id) return;
+    var id = d.id;
+    var existing = appFrames[id];
+    var op = (d.opacity != null ? d.opacity : 100) / 100;
+
+    /* if already showing, update position/size without re-animating */
+    if (existing) {
+      /* cancel any in-flight animation listener by bumping generation */
+      existing.animGen = (existing.animGen || 0) + 1;
+      applyAppProps(existing.wrap, d);
+      /* apply opacity directly — no flash */
+      existing.wrap.style.opacity = String(op);
+      /* update url if changed */
+      var newUrl = resolveAppUrl(d.url);
+      if (newUrl && newUrl.indexOf('noctrl=') < 0) {
+        var ncsep2 = newUrl.indexOf('?') >= 0 ? '&' : '?';
+        newUrl = newUrl + ncsep2 + 'noctrl=1';
+      }
+      if (!newUrl) {
+        showOverlayError('App URL blocked or invalid: ' + String(d.url || ''));
+      } else if (existing.iframe.src !== newUrl) {
+        existing.iframe.src = newUrl;
+      }
+      existing.animMode = d.animMode || 'default';
+      existing.lastData = d;
+      var edm = d.designMode || (d.themeSync ? 'accent' : 'app');
+      if (edm !== 'app') sendConfigToAppFrame(existing, d);
+      /* clear any hide-animation classes */
+      existing.wrap.classList.remove('anim-app-slide-out', 'anim-app-fade-out', 'anim-app-none-out',
+                                    'anim-app-slide-in', 'anim-app-fade-in', 'anim-app-none-in');
+      return;
+    }
+
+    /* Enforce frame cap */
+    if (countActiveAppFrames() >= APP_MAX_FRAMES) return;
+
+    /* Create new frame */
+    var w = document.createElement('div');
+    w.className = 'app-frame-wrap';
+    w.setAttribute('data-app-id', String(id));
+    w.style.opacity = '0'; /* Hide before DOM insertion to prevent flash at wrong size */
+    applyAppProps(w, d);
+
+    var appUrl = resolveAppUrl(d.url);
+    if (!appUrl) {
+      showOverlayError('App URL blocked or invalid: ' + String(d.url || ''));
+      return;
+    }
+    /* Always append noctrl=1 — broadcast display never shows controls (dock-only operation) */
+    if (appUrl.indexOf('noctrl=') < 0) {
+      var ncsep = appUrl.indexOf('?') >= 0 ? '&' : '?';
+      appUrl = appUrl + ncsep + 'noctrl=1';
+    }
+
+    var ifr = document.createElement('iframe');
+    ifr.src = appUrl;
+    /* NOTE: allow-scripts + allow-same-origin is required for local file:// apps.
+       Only load trusted local HTML. Never pass untrusted third-party URLs. */
+    ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+    ifr.setAttribute('loading', 'lazy');
+    ifr.setAttribute('allowtransparency', 'true');
+    ifr.style.background = 'transparent';
+    w.appendChild(ifr);
+
+    if (appContainer) appContainer.appendChild(w);
+
+    var am = d.animMode || 'default';
+    var entry = { wrap: w, iframe: ifr, animMode: am, animGen: 1, lastData: d };
+    appFrames[id] = entry;
+    var ndm = d.designMode || (d.themeSync ? 'accent' : 'app');
+    if (ndm !== 'app') {
+      ifr.addEventListener('load', function() { sendConfigToAppFrame(entry, d); });
+    }
+    applyAppShowAnim(entry, am, op);
+  }
+
+  function handleAppConfig(d) {
+    if (!d || !d.id) return;
+    var entry = appFrames[d.id];
+    if (!entry) return;
+    var cdm = d.designMode || (d.themeSync ? 'accent' : 'app');
+    if (cdm === 'app') return;
+    sendConfigToAppFrame(entry, d);
+  }
+
+  function applyAppShowAnim(entry, mode, opacity01) {
+    var wrap = entry.wrap;
+    var gen = entry.animGen;
+    var finalOp = opacity01 != null ? opacity01 : 1;
+
+    wrap.classList.remove('anim-app-slide-in', 'anim-app-fade-in', 'anim-app-none-in',
+                          'anim-app-slide-out', 'anim-app-fade-out', 'anim-app-none-out');
+
+    if (mode === 'none') {
+      /* Instant show — no animation */
+      wrap.style.opacity = String(finalOp);
+      if (entry.lastData) applyAppProps(wrap, entry.lastData);
+      return;
+    }
+
+    wrap.style.opacity = '0';
+    if (mode === 'fade') {
+      wrap.classList.add('anim-app-fade-in');
+    } else {
+      /* Slide: clear inline transform so keyframe's var(--app-base-tf) takes effect.
+         The CSS variable is set by applyAppProps and preserved on the element. */
+      wrap.style.transform = '';
+      wrap.classList.add('anim-app-slide-in');
+    }
+
+    wrap.addEventListener('animationend', function onEnd() {
+      wrap.removeEventListener('animationend', onEnd);
+      if (entry.animGen !== gen) return;
+      wrap.classList.remove('anim-app-fade-in', 'anim-app-slide-in', 'anim-app-none-in');
+      wrap.style.animation = '';
+      /* Restore inline transform from CSS variable after animation */
+      var baseTf = wrap.style.getPropertyValue('--app-base-tf');
+      if (baseTf) wrap.style.transform = baseTf;
+      wrap.style.opacity = String(finalOp);
+    });
+  }
+
+  function handleAppHide(id) {
+    if (!id) return;
+    var entry = appFrames[id];
+    if (!entry) return;
+    /* Bump generation to invalidate any pending show-animation listener */
+    entry.animGen = (entry.animGen || 0) + 1;
+    var w = entry.wrap;
+    var am = entry.animMode || 'default';
+    var gen = entry.animGen;
+
+    /* Remove from tracked map immediately (prevents double-hide) */
+    delete appFrames[id];
+
+    w.classList.remove('anim-app-slide-in', 'anim-app-fade-in', 'anim-app-none-in');
+
+    if (am === 'none') {
+      /* Instant remove */
+      try { if (w.parentNode) w.parentNode.removeChild(w); } catch(e) {}
+      return;
+    }
+
+    if (am === 'fade') {
+      w.classList.add('anim-app-fade-out');
+    } else {
+      /* Slide out: clear inline transform, let keyframe's var(--app-base-tf) handle it */
+      w.style.transform = '';
+      w.classList.add('anim-app-slide-out');
+    }
+    w.addEventListener('animationend', function onEnd() {
+      w.removeEventListener('animationend', onEnd);
+      try { if (w.parentNode) w.parentNode.removeChild(w); } catch(e) {}
+    });
+  }
+
+  function handleAppClear() {
+    for (var aid in appFrames) {
+      if (appFrames.hasOwnProperty(aid)) {
+        try {
+          var entry = appFrames[aid];
+          /* Detach iframe src to release resources */
+          if (entry.iframe) entry.iframe.src = 'about:blank';
+          if (entry.wrap && entry.wrap.parentNode) entry.wrap.parentNode.removeChild(entry.wrap);
+        } catch(e) {}
+      }
+    }
+    appFrames = {};
+  }
+
+  function applyLayerZ() {
+    var zMap = { chapter: 10, titlecard: 20, image: 30, app: 40 };
+    var order = layerOrder;
+    for (var i = 0; i < order.length; i++) {
+      zMap[order[i]] = 10 + i * 10;
+    }
+    wrap.style.zIndex = String(zMap.chapter);
+    if (wrap2) wrap2.style.zIndex = String(zMap.chapter);
+    tcWrap.style.zIndex = String(zMap.titlecard);
+    if (tcWrap2) tcWrap2.style.zIndex = String(zMap.titlecard);
+    imgWrap.style.zIndex = String(zMap.image);
+    if (imgWrap2) imgWrap2.style.zIndex = String(zMap.image);
+    if (imgGroupContainer) imgGroupContainer.style.zIndex = String(zMap.image);
+    if (appContainer) appContainer.style.zIndex = String(zMap.app);
+  }
+
+  function applyItemOffset(el, pos, iox, ioy) {
+    var ox = iox || 0;
+    var oy = ioy || 0;
+    var p = pos || 'bl';
+    var baseX = 80;
+    var baseY = 80;
+    if (p === 'bl' || p === 'tl') {
+      el.style.left = (baseX + ox) + 'px';
+      el.style.right = 'auto';
+    } else {
+      el.style.right = (baseX + ox) + 'px';
+      el.style.left = 'auto';
+    }
+    if (p === 'bl' || p === 'br') {
+      el.style.bottom = (baseY + oy) + 'px';
+      el.style.top = 'auto';
+    } else {
+      el.style.top = (baseY + oy) + 'px';
+      el.style.bottom = 'auto';
+    }
+  }
+
+  /* setTheme() removed — themes no longer shipped; use Custom CSS for overrides */
+
+  function sanitizeLayerOrder(arr) {
+    var def = ['chapter', 'titlecard', 'image', 'app'];
+    if (!Array.isArray(arr)) return def;
+    var allowed = { chapter: 1, titlecard: 1, image: 1, app: 1 };
+    /* Migrate legacy 3-element arrays */
+    if (arr.length === 3) {
+      var ok3 = true;
+      for (var j = 0; j < 3; j++) { if (!allowed[arr[j]]) { ok3 = false; break; } }
+      if (ok3) return [arr[0], arr[1], arr[2], 'app'];
+      return def;
+    }
+    if (arr.length !== 4) return def;
+    var seen = {};
+    for (var i = 0; i < 4; i++) {
+      if (!allowed[arr[i]] || seen[arr[i]]) return def;
+      seen[arr[i]] = true;
+    }
+    return arr;
+  }
+
+  /* Errors are console-only — never show on broadcast screen */
+  function showOverlayError(msg) {
+    console.warn('[kasaneru]', msg);
+  }
+  function hideOverlayError() {
+    if (overlayError) overlayError.style.display = 'none';
+  }
+
+  function posFor(which) {
+    if (which === 'ch') return chapterPosition || 'bl';
+    if (which === 'tc') return titleCardPosition || 'tl';
+    return imagePosition || 'bl';
+  }
+
+  function posClass(which) {
+    var base = 'pos-' + posFor(which);
+    if (which === 'tc' && (labelHidden || tcLabelEmpty)) return base + ' tc-no-label';
+    return base;
+  }
+
+  function applyPosClassFor(el, which) {
+    var r = el.className.replace(/pos-\w+/g, '').trim();
+    el.className = (r ? r + ' ' : '') + posClass(which);
+  }
+
+  function applyTextAlign() {
+    var a = textAlign || 'left';
+    card.style.textAlign = a;
+    if (card2) card2.style.textAlign = a;
+    tcCard.style.textAlign = a;
+    if (tcCard2) tcCard2.style.textAlign = a;
+    titleEl.style.textAlign = a;
+    if (titleEl2) titleEl2.style.textAlign = a;
+    subEl.style.textAlign = a;
+    if (subEl2) subEl2.style.textAlign = a;
+    tcTitle.style.textAlign = a;
+    if (tcTitle2) tcTitle2.style.textAlign = a;
+  }
+
+  function isJpCodeUnit(pairFirst, pairSecond) {
+    var c = pairFirst;
+    if (c >= 0x3040 && c <= 0x309F) return true;
+    if (c >= 0x30A0 && c <= 0x30FF) return true;
+    if (c >= 0x4E00 && c <= 0x9FFF) return true;
+    if (c >= 0x3400 && c <= 0x4DBF) return true;
+    if (c >= 0xFF00 && c <= 0xFFEF) return true;
+    if (c >= 0x3000 && c <= 0x303F) return true;
+    return false;
+  }
+
+  function splitScriptHtml(text) {
+    if (!text) return '';
+    var f = fontSettings;
+    var jf = f.titleJpFamily || f.titleFamily || '';
+    var ef = f.titleEnFamily || f.titleFamily || '';
+    if (!jf && !ef) return escapeHtml(text).replace(/\n/g, '<br>');
+    var out = '';
+    var i = 0;
+    while (i < text.length) {
+      var c = text.charCodeAt(i);
+      var ch = text.charAt(i);
+      var jp = isJpCodeUnit(c, 0);
+      if (ch === '\n') {
+        out += '<br>';
+        i++;
+        continue;
+      }
+      var start = i;
+      if (jp) {
+        while (i < text.length) {
+          var c2 = text.charCodeAt(i);
+          var ch2 = text.charAt(i);
+          if (ch2 === '\n') break;
+          if (!isJpCodeUnit(c2, 0)) break;
+          i++;
+        }
+        out += '<span class="lt-jp" style="' + scriptStyle('title', 'jp') + '">' + escapeHtml(text.slice(start, i)) + '</span>';
+      } else {
+        while (i < text.length) {
+          var c3 = text.charCodeAt(i);
+          var ch3 = text.charAt(i);
+          if (ch3 === '\n') break;
+          if (isJpCodeUnit(c3, 0)) break;
+          i++;
+        }
+        out += '<span class="lt-en" style="' + scriptStyle('title', 'en') + '">' + escapeHtml(text.slice(start, i)) + '</span>';
+      }
+    }
+    return out;
+  }
+
+  function splitScriptHtmlSub(text) {
+    if (!text) return '';
+    var f = fontSettings;
+    var jf = f.subJpFamily || f.subFamily || '';
+    var ef = f.subEnFamily || f.subFamily || '';
+    if (!jf && !ef) return escapeHtml(text).replace(/\n/g, '<br>');
+    var out = '';
+    var i = 0;
+    while (i < text.length) {
+      var c = text.charCodeAt(i);
+      var ch = text.charAt(i);
+      var jp = isJpCodeUnit(c, 0);
+      if (ch === '\n') {
+        out += '<br>';
+        i++;
+        continue;
+      }
+      var start = i;
+      if (jp) {
+        while (i < text.length) {
+          var c2 = text.charCodeAt(i);
+          var ch2 = text.charAt(i);
+          if (ch2 === '\n') break;
+          if (!isJpCodeUnit(c2, 0)) break;
+          i++;
+        }
+        out += '<span class="lt-jp" style="' + scriptStyle('sub', 'jp') + '">' + escapeHtml(text.slice(start, i)) + '</span>';
+      } else {
+        while (i < text.length) {
+          var c3 = text.charCodeAt(i);
+          var ch3 = text.charAt(i);
+          if (ch3 === '\n') break;
+          if (isJpCodeUnit(c3, 0)) break;
+          i++;
+        }
+        out += '<span class="lt-en" style="' + scriptStyle('sub', 'en') + '">' + escapeHtml(text.slice(start, i)) + '</span>';
+      }
+    }
+    return out;
+  }
+
+  function scriptStyle(kind, script) {
+    var f = fontSettings;
+    var fam = '';
+    var lhPct = 120;
+    var lsPct = 0;
+    if (kind === 'title') {
+      fam = script === 'jp' ? (f.titleJpFamily || f.titleFamily || '') : (f.titleEnFamily || f.titleFamily || '');
+      lhPct = script === 'jp' ? (f.titleLineHeightJpPct || 120) : (f.titleLineHeightEnPct || 120);
+      lsPct = script === 'jp' ? (f.titleLetterJpPct || 0) : (f.titleLetterEnPct || 0);
+    } else {
+      fam = script === 'jp' ? (f.subJpFamily || f.subFamily || '') : (f.subEnFamily || f.subFamily || '');
+      lhPct = script === 'jp' ? (f.subLineHeightJpPct || 120) : (f.subLineHeightEnPct || 120);
+      lsPct = script === 'jp' ? (f.subLetterJpPct || 0) : (f.subLetterEnPct || 0);
+    }
+    var s = '';
+    if (fam) s += 'font-family:' + fam + ';';
+    s += 'line-height:' + (lhPct / 100) + ';';
+    s += 'letter-spacing:' + (lsPct / 100) + 'em;';
+    return s;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function useTitleSplit() {
+    var f = fontSettings;
+    return !!(f.titleJpFamily || f.titleEnFamily);
+  }
+  function useSubSplit() {
+    var f = fontSettings;
+    return !!(f.subJpFamily || f.subEnFamily);
+  }
+
+  function applyFont() {
+    var f = fontSettings;
+    titleEl.style.fontFamily = useTitleSplit() ? 'inherit' : (f.titleFamily || '');
+    titleEl.style.fontSize   = (f.titleSize || 48) + 'px';
+    titleEl.style.fontWeight  = f.titleBold ? '900' : '';
+    titleEl.style.fontStyle   = f.titleItalic ? 'italic' : '';
+    titleEl.style.color       = f.titleColor || '';
+    if (titleEl2) {
+      titleEl2.style.fontFamily = useTitleSplit() ? 'inherit' : (f.titleFamily || '');
+      titleEl2.style.fontSize   = (f.titleSize || 48) + 'px';
+      titleEl2.style.fontWeight  = f.titleBold ? '900' : '';
+      titleEl2.style.fontStyle   = f.titleItalic ? 'italic' : '';
+      titleEl2.style.color       = f.titleColor || '';
+    }
+    subEl.style.fontFamily    = useSubSplit() ? 'inherit' : (f.subFamily || '');
+    subEl.style.fontSize      = (f.subSize || 28) + 'px';
+    subEl.style.fontWeight    = f.subBold ? '700' : '';
+    subEl.style.fontStyle     = f.subItalic ? 'italic' : '';
+    subEl.style.color         = f.subColor || '';
+    if (subEl2) {
+      subEl2.style.fontFamily    = useSubSplit() ? 'inherit' : (f.subFamily || '');
+      subEl2.style.fontSize      = (f.subSize || 28) + 'px';
+      subEl2.style.fontWeight    = f.subBold ? '700' : '';
+      subEl2.style.fontStyle     = f.subItalic ? 'italic' : '';
+      subEl2.style.color         = f.subColor || '';
+    }
+    badgeTag.style.fontSize   = (f.badgeSize || 26) + 'px';
+    badgeTag.style.fontWeight  = f.badgeBold ? '900' : '';
+    badgeTag.style.fontStyle   = f.badgeItalic ? 'italic' : '';
+    badgeTag.style.color       = f.badgeColor || '#ffffff';
+    if (badgeTag2) {
+      badgeTag2.style.fontSize   = (f.badgeSize || 26) + 'px';
+      badgeTag2.style.fontWeight  = f.badgeBold ? '900' : '';
+      badgeTag2.style.fontStyle   = f.badgeItalic ? 'italic' : '';
+      badgeTag2.style.color       = f.badgeColor || '#ffffff';
+    }
+  }
+
+  function applyTitleCardStyles() {
+    var base = syncTitleCardWithChapter ? fontSettings : (titleCardFont || {});
+    var f = base;
+    var bf = fontSettings;
+    tcTitle.style.fontFamily = f.titleFamily || '';
+    tcTitle.style.fontSize   = (f.titleSize || 48) + 'px';
+    tcTitle.style.fontWeight = f.titleBold ? '900' : '';
+    tcTitle.style.fontStyle  = f.titleItalic ? 'italic' : '';
+    tcTitle.style.color      = f.titleColor || '';
+    if (tcTitle2) {
+      tcTitle2.style.fontFamily = f.titleFamily || '';
+      tcTitle2.style.fontSize   = (f.titleSize || 48) + 'px';
+      tcTitle2.style.fontWeight = f.titleBold ? '900' : '';
+      tcTitle2.style.fontStyle  = f.titleItalic ? 'italic' : '';
+      tcTitle2.style.color      = f.titleColor || '';
+    }
+    var lb = labelSettings;
+    if (tcLabelStack) tcLabelStack.style.display = labelHidden ? 'none' : '';
+    if (tcLabelStack2) tcLabelStack2.style.display = labelHidden ? 'none' : '';
+    forEachTcLabelEl(function(el) {
+      if (labelFontSyncBadge) {
+        el.style.fontFamily = '';
+        el.style.fontSize   = (bf.badgeSize || 26) + 'px';
+        el.style.fontWeight = bf.badgeBold ? '900' : '';
+        el.style.fontStyle  = bf.badgeItalic ? 'italic' : '';
+      } else {
+        el.style.fontFamily = lb.labelFamily || f.titleFamily || '';
+        el.style.fontSize   = (lb.labelSize || 26) + 'px';
+        el.style.fontWeight = lb.labelBold ? '800' : '';
+        el.style.fontStyle  = lb.labelItalic ? 'italic' : '';
+      }
+      el.style.color = lb.labelColor || '#ffffff';
+    });
+    forEachTcLabelEl2(function(el) {
+      if (labelFontSyncBadge) {
+        el.style.fontFamily = '';
+        el.style.fontSize   = (bf.badgeSize || 26) + 'px';
+        el.style.fontWeight = bf.badgeBold ? '900' : '';
+        el.style.fontStyle  = bf.badgeItalic ? 'italic' : '';
+      } else {
+        el.style.fontFamily = lb.labelFamily || f.titleFamily || '';
+        el.style.fontSize   = (lb.labelSize || 26) + 'px';
+        el.style.fontWeight = lb.labelBold ? '800' : '';
+        el.style.fontStyle  = lb.labelItalic ? 'italic' : '';
+      }
+      el.style.color = lb.labelColor || '#ffffff';
+    });
+  }
+
+  function applyAccent() {
+    var r = document.documentElement;
+    if (accentColor) {
+      r.style.setProperty('--acc', accentColor);
+      r.style.setProperty('--pip-cur', accentColor);
+      r.style.setProperty('--pip-done', accentColor + '80');
+    } else {
+      r.style.removeProperty('--acc');
+      r.style.removeProperty('--pip-cur');
+      r.style.removeProperty('--pip-done');
+    }
+  }
+
+  function applyCardBg() {
+    if (cardBgColor) {
+      var adj = adjustSurfaceAlphaOnColor(cardBgColor, false);
+      document.documentElement.style.setProperty('--card-bg', adj);
+    } else {
+      document.documentElement.style.removeProperty('--card-bg');
+    }
+  }
+
+  function getGroup(idx) {
+    if (!chapters[idx] || !groups.length) return null;
+    var gid = chapters[idx].g;
+    if (!gid && gid !== 0) return null;
+    for (var i = 0; i < groups.length; i++) { if (groups[i].id === gid) return groups[i]; }
+    return null;
+  }
+
+  function fmtBadge(idx) {
+    if (badgeStyle === 'none') return '';
+    /* Compute within-group index if group uses restart numbering */
+    var ch = chapters[idx];
+    var n = idx + 1;
+    if (ch && ch.g != null) {
+      for (var gi = 0; gi < groups.length; gi++) {
+        if (groups[gi].id === ch.g && groups[gi].badgeNumbering === 'restart') {
+          var cnt = 0;
+          for (var bi = 0; bi < idx; bi++) {
+            if (chapters[bi].g === ch.g) cnt++;
+          }
+          n = cnt + 1;
+          break;
+        }
+      }
+    }
+    if (badgeStyle === 'num') return n < 10 ? '0' + n : String(n);
+    if (badgeStyle === 'jp') return '\u7B2C' + n + '\u7AE0';
+    return 'CH.' + n;
+  }
+
+  function buildPips() {
+    pipsEl.innerHTML = '';
+    var max = Math.min(chapters.length, 20);
+    for (var i = 0; i < max; i++) {
+      var pip = document.createElement('span');
+      pip.className = 'ov-pip';
+      if (i < currentIndex) pip.className += ' done';
+      if (i === currentIndex) pip.className += ' cur';
+      var grp = getGroup(i);
+      if (grp && grp.color) {
+        pip.style.background = grp.color;
+        if (i < currentIndex) pip.style.opacity = '0.5';
+        else if (i > currentIndex) pip.style.opacity = '0.25';
+      }
+      pipsEl.appendChild(pip);
+    }
+  }
+
+  function nl(t) { return t ? t.replace(/\\n/g, '\n') : ''; }
+
+  function fillChapter() {
+    var ch = chapters[currentIndex];
+    if (!ch) return;
+    var badgeText = fmtBadge(currentIndex);
+    badgeTag.textContent = badgeText;
+    badgeWrap.style.display = badgeText ? '' : 'none';
+    badgeNum.textContent = (currentIndex + 1) + '/' + chapters.length;
+    var tRaw = nl(ch.t || '');
+    var sRaw = nl(ch.s || '');
+    if (useTitleSplit()) {
+      titleEl.innerHTML = splitScriptHtml(tRaw);
+    } else {
+      titleEl.textContent = tRaw;
+    }
+    if (useSubSplit()) {
+      subEl.innerHTML = splitScriptHtmlSub(sRaw);
+    } else {
+      subEl.textContent = sRaw;
+    }
+    subEl.style.display = ch.s ? 'block' : 'none';
+    var grp = getGroup(currentIndex);
+    /* Group label hidden on broadcast — groups are internal organization only */
+    if (grp && grp.color) { card.style.borderLeftColor = grp.color; }
+    else { card.style.borderLeftColor = ''; }
+    applyPillColors(grp);
+    buildPips(); applyFont();
+  }
+
+  function applyPillColors(grp) {
+    try {
+      var acc = accentColor || '';
+      if (!acc) acc = getComputedStyle(document.documentElement).getPropertyValue('--acc').trim();
+      var groupC = (grp && grp.color) ? grp.color : '';
+
+      var chBase = (pillColorMode === 'accent') ? acc : (groupC || acc);
+      var chBg = toRgba(chBase, effPillBg01());
+      var chBd = toRgba(chBase, effPillBorder01());
+      if (badgeTag) {
+        if (chBg) badgeTag.style.background = chBg;
+        if (chBd) badgeTag.style.borderColor = chBd;
+        badgeTag.style.borderStyle = 'solid';
+        badgeTag.style.borderWidth = '1px';
+      }
+
+      var tcBase = '';
+      if (pillColorMode === 'accent') tcBase = acc;
+      else {
+        if (tcLabelBgMode === 'accent') tcBase = acc;
+        else tcBase = ''; /* card color is applied in applyTitleCardPayload */
+      }
+      if (tcBase) {
+        var tcBg = toRgba(tcBase, effPillBg01());
+        var tcBd = toRgba(tcBase, effPillBorder01());
+        forEachTcLabelEl(function(el) {
+          if (tcBg) el.style.background = tcBg;
+          if (tcBd) el.style.borderColor = tcBd;
+          el.style.borderStyle = 'solid';
+          el.style.borderWidth = '1px';
+        });
+      }
+    } catch(e) {}
+  }
+
+  function showChapter() {
+    if (chAnimating) return;
+    if (!chapters.length) return;
+    if (currentIndex < 0 || currentIndex >= chapters.length) currentIndex = 0;
+    fillChapter();
+    clearChAnim();
+    if (chapterAnimMode === 'none') {
+      wrap.style.opacity = '1';
+      wrap.style.transform = 'none';
+      wrap.className = posClass('ch');
+      chVisible = true;
+      return;
+    }
+    if (chapterAnimMode === 'fade') {
+      wrap.style.opacity = '';
+      wrap.style.transform = 'none';
+      wrap.className = posClass('ch') + ' anim-fade-in';
+      chVisible = true;
+      return;
+    }
+    doChShow();
+    chVisible = true;
+  }
+
+  function transitionChapter() {
+    if (chAnimating) return;
+    if (chapterAnimMode === 'none') {
+      fillChapter();
+      wrap.style.opacity = '1';
+      wrap.style.transform = 'none';
+      wrap.className = posClass('ch');
+      return;
+    }
+    chAnimating = true;
+    if (chapterAnimMode === 'fade') wrap.className = posClass('ch') + ' anim-fade-out';
+    else wrap.className = posClass('ch') + ' anim-hide';
+    setTimeout(function() {
+      fillChapter();
+      clearChAnim();
+      if (chapterAnimMode === 'fade') {
+        wrap.style.opacity = '';
+        wrap.style.transform = 'none';
+        wrap.className = posClass('ch') + ' anim-fade-in';
+      } else {
+        doChShow();
+      }
+      chAnimating = false;
+    }, TRANS_MS);
+  }
+
+  function doChShow() {
+    wrap.style.opacity = ''; wrap.style.transform = '';
+    wrap.className = posClass('ch') + ' anim-show-wrap';
+    badgeWrap.className = 'ov-badge-wrap anim-show-badge';
+    card.className = 'ov-card anim-show-card';
+    titleEl.className = 'ov-title anim-show-title';
+    subEl.className = 'ov-sub anim-show-sub';
+  }
+
+  function clearChAnim() {
+    wrap.className = posClass('ch');
+    badgeWrap.className = 'ov-badge-wrap';
+    card.className = 'ov-card';
+    titleEl.className = 'ov-title';
+    subEl.className = 'ov-sub';
+  }
+
+  function hideChapter() {
+    if (!chVisible) return;
+    if (chapterAnimMode === 'none') {
+      wrap.style.opacity = '0';
+      wrap.className = posClass('ch');
+      chVisible = false;
+      chAnimating = false;
+      return;
+    }
+    chAnimating = true;
+    if (chapterAnimMode === 'fade') wrap.className = posClass('ch') + ' anim-fade-out';
+    else wrap.className = posClass('ch') + ' anim-hide';
+    setTimeout(function() {
+      wrap.style.opacity = '0';
+      wrap.style.transform = (chapterAnimMode === 'fade') ? 'none' : 'translateX(-60px)';
+      clearChAnim(); chVisible = false; chAnimating = false;
+    }, 300);
+  }
+
+  function applyTitleCardPayload(d) {
+    tcOffsetX = d.offsetX || 0;
+    tcOffsetY = d.offsetY || 0;
+    applyItemOffset(tcWrap, titleCardPosition, tcOffsetX + tcGlobalOx, tcOffsetY + tcGlobalOy);
+    var t = nl(d.title || '');
+    if (syncTitleCardWithChapter && useTitleSplit()) {
+      tcTitle.innerHTML = splitScriptHtml(t);
+      tcTitle.style.fontSize = '';
+      tcTitle.style.fontFamily = '';
+    } else {
+      tcTitle.textContent = t;
+    }
+    var labels = [];
+    if (d.labels && d.labels.length) {
+      for (var li = 0; li < d.labels.length; li++) {
+        var lt = String(d.labels[li] == null ? '' : d.labels[li]).trim();
+        if (lt) labels.push(lt);
+      }
+    }
+    if (!labels.length && d.label) {
+      var one = String(d.label).trim();
+      if (one) labels.push(one);
+    }
+    tcLabelEmpty = labels.length === 0;
+    if (tcLabelStack) {
+      tcLabelStack.innerHTML = '';
+      for (var lj = 0; lj < labels.length; lj++) {
+        var sp = document.createElement('span');
+        sp.className = 'tc-label-tag';
+        sp.textContent = labels[lj];
+        tcLabelStack.appendChild(sp);
+      }
+    }
+    applyPosClassFor(tcWrap, 'tc');
+    tcCard.style.borderLeftColor = d.color || '';
+    try {
+      var c = '';
+      if (pillColorMode === 'accent') {
+        c = accentColor || '';
+      } else {
+        if (tcLabelBgMode === 'accent') c = accentColor || '';
+        else c = d.color || '';
+      }
+      if (!c) c = accentColor || '';
+      if (!c) c = getComputedStyle(document.documentElement).getPropertyValue('--acc').trim();
+      var rgba = toRgba(c, effPillBg01());
+      var rb = toRgba(c, effPillBorder01());
+      forEachTcLabelEl(function(el) {
+        if (rgba) el.style.background = rgba;
+        if (rb) el.style.borderColor = rb;
+        el.style.borderStyle = 'solid';
+        el.style.borderWidth = '1px';
+      });
+    } catch(e) {}
+    if (d.cardBg) {
+      tcCard.style.background = adjustSurfaceAlphaOnColor(d.cardBg, true);
+    } else {
+      tcCard.style.background = '';
+    }
+    applyTitleCardStyles();
+  }
+
+  function toRgba(color, alpha) {
+    var a = typeof alpha === 'number' ? alpha : 0.2;
+    if (a < 0) a = 0;
+    if (a > 1) a = 1;
+    var s = String(color || '').trim();
+    if (!s) return '';
+    if (s.indexOf('rgba(') === 0) return s;
+    if (s.indexOf('rgb(') === 0) return s.replace('rgb(', 'rgba(').replace(')', ',' + a + ')');
+    if (s.charAt(0) === '#') {
+      if (s.length === 4) s = '#' + s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2) + s.charAt(3) + s.charAt(3);
+      if (s.length !== 7) return '';
+      var r = parseInt(s.slice(1, 3), 16);
+      var g = parseInt(s.slice(3, 5), 16);
+      var b = parseInt(s.slice(5, 7), 16);
+      if (isNaN(r) || isNaN(g) || isNaN(b)) return '';
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    }
+    return '';
+  }
+
+  function handleTitleCardShow(d) {
+    pendingTitleCard = d;
+    if (tcSwapTimer) { clearTimeout(tcSwapTimer); tcSwapTimer = null; }
+    if (tcVisible) {
+      tcAnimating = true;
+      if (titleCardAnimMode === 'none') {
+        applyTitleCardPayload(pendingTitleCard);
+        pendingTitleCard = null;
+        showTitleCardAnim();
+        tcAnimating = false;
+        return;
+      }
+      if (titleCardAnimMode === 'fade') tcWrap.className = posClass('tc') + ' anim-fade-out';
+      else tcWrap.className = posClass('tc') + ' anim-hide';
+      tcSwapTimer = setTimeout(function() {
+        applyTitleCardPayload(pendingTitleCard);
+        pendingTitleCard = null;
+        showTitleCardAnim();
+        tcAnimating = false;
+        tcSwapTimer = null;
+      }, TRANS_MS);
+    } else {
+      applyTitleCardPayload(d);
+      showTitleCardAnim();
+    }
+  }
+
+  function showTitleCardAnim() {
+    if (titleCardAnimMode === 'none') {
+      tcWrap.style.opacity = '1';
+      tcWrap.style.transform = 'none';
+      tcWrap.className = posClass('tc');
+      tcVisible = true;
+      return;
+    }
+    if (titleCardAnimMode === 'fade') {
+      tcWrap.style.opacity = '';
+      tcWrap.style.transform = 'none';
+      tcWrap.className = posClass('tc') + ' anim-fade-in';
+      tcVisible = true;
+      return;
+    }
+    tcWrap.style.opacity = ''; tcWrap.style.transform = '';
+    tcWrap.className = posClass('tc') + ' anim-show-wrap';
+    tcVisible = true;
+  }
+
+  function hideTitleCard() {
+    if (!tcVisible) return;
+    if (titleCardAnimMode === 'none') {
+      tcWrap.style.opacity = '0';
+      tcWrap.className = posClass('tc');
+      tcVisible = false;
+      return;
+    }
+    if (titleCardAnimMode === 'fade') tcWrap.className = posClass('tc') + ' anim-fade-out';
+    else tcWrap.className = posClass('tc') + ' anim-hide';
+    setTimeout(function() {
+      tcWrap.style.opacity = '0';
+      tcWrap.style.transform = (titleCardAnimMode === 'fade') ? 'none' : 'translateX(-60px)';
+      tcWrap.className = posClass('tc');
+      tcVisible = false;
+    }, 300);
+  }
+
+  function resolveOverlayImgFit(d) {
+    if (d && (d.fitCanvas === true || d.fitCanvas === false)) return d.fitCanvas;
+    return imageFitCanvasDefault;
+  }
+
+  function applyImgLayout(d) {
+    if (!d || !imgDisplay) return;
+    var scalePct = d.scale || 100;
+    var desiredW = Math.max(1, Math.round(CANVAS_W * scalePct / 100));
+    var fit = resolveOverlayImgFit(d);
+    function runLayout() {
+      var nw = imgDisplay.naturalWidth;
+      var nh = imgDisplay.naturalHeight;
+      if (!nw || !nh) return;
+      if (fit) {
+        var rw = desiredW;
+        var rh = nh * (rw / nw);
+        var s = Math.min(1, CANVAS_W / rw, CANVAS_H / rh);
+        rw = Math.max(1, Math.round(rw * s));
+        rh = Math.max(1, Math.round(rh * s));
+        imgDisplay.style.width = rw + 'px';
+        imgDisplay.style.height = rh + 'px';
+        imgDisplay.style.maxWidth = '';
+        imgDisplay.style.maxHeight = '';
+      } else {
+        imgDisplay.style.width = desiredW + 'px';
+        imgDisplay.style.height = 'auto';
+        imgDisplay.style.maxWidth = 'none';
+        imgDisplay.style.maxHeight = 'none';
+      }
+    }
+    imgDisplay.onload = runLayout;
+    if (imgDisplay.complete && imgDisplay.naturalWidth) runLayout();
+  }
+
+  function applyImgLayout2(d) {
+    if (!d || !imgDisplay2) return;
+    var scalePct = d.scale || 100;
+    var desiredW = Math.max(1, Math.round(CANVAS_W * scalePct / 100));
+    var fit = resolveOverlayImgFit(d);
+    function runLayout() {
+      var nw = imgDisplay2.naturalWidth;
+      var nh = imgDisplay2.naturalHeight;
+      if (!nw || !nh) return;
+      if (fit) {
+        var rw = desiredW;
+        var rh = nh * (rw / nw);
+        var s = Math.min(1, CANVAS_W / rw, CANVAS_H / rh);
+        rw = Math.max(1, Math.round(rw * s));
+        rh = Math.max(1, Math.round(rh * s));
+        imgDisplay2.style.width = rw + 'px';
+        imgDisplay2.style.height = rh + 'px';
+        imgDisplay2.style.maxWidth = '';
+        imgDisplay2.style.maxHeight = '';
+      } else {
+        imgDisplay2.style.width = desiredW + 'px';
+        imgDisplay2.style.height = 'auto';
+        imgDisplay2.style.maxWidth = 'none';
+        imgDisplay2.style.maxHeight = 'none';
+      }
+    }
+    imgDisplay2.onload = runLayout;
+    if (imgDisplay2.complete && imgDisplay2.naturalWidth) runLayout();
+  }
+
+  function applyImgPayload(d) {
+    var ox = d.offsetX || 0;
+    var oy = d.offsetY || 0;
+    lastImgOx = ox;
+    lastImgOy = oy;
+    lastImgShowArgs = {
+      src: d.src, scale: d.scale, offsetX: d.offsetX, offsetY: d.offsetY,
+      fitCanvas: d.fitCanvas
+    };
+    applyItemOffset(imgWrap, imagePosition, ox + imgGlobalOx, oy + imgGlobalOy);
+    imgDisplay.src = encodePathForSrc(d.src || '');
+    imgDisplay.onerror = function() { imgDisplay.alt = 'Image not found'; };
+    applyImgLayout(lastImgShowArgs);
+  }
+
+  function applyImgPayload2(d) {
+    if (!imgDisplay2 || !imgWrap2) return;
+    var ox = d.offsetX || 0;
+    var oy = d.offsetY || 0;
+    applyItemOffset(imgWrap2, imagePosition, ox + imgGlobalOx, oy + imgGlobalOy);
+    imgDisplay2.src = encodePathForSrc(d.src || '');
+    imgDisplay2.onerror = function() { imgDisplay2.alt = 'Image not found'; };
+    applyImgLayout2({ src: d.src, scale: d.scale, offsetX: d.offsetX, offsetY: d.offsetY, fitCanvas: d.fitCanvas });
+  }
+
+  function handleImgShow(d) {
+    pendingImg = d;
+    if (imgSwapTimer) { clearTimeout(imgSwapTimer); imgSwapTimer = null; }
+    if (imgVisible) {
+      imgAnimating = true;
+      if (imageAnimMode === 'none') {
+        applyImgPayload(pendingImg);
+        pendingImg = null;
+        showImgAnim();
+        imgAnimating = false;
+        return;
+      }
+      if (imageAnimMode === 'fade') imgWrap.className = posClass('img') + ' anim-fade-out';
+      else imgWrap.className = posClass('img') + ' anim-hide';
+      imgSwapTimer = setTimeout(function() {
+        applyImgPayload(pendingImg);
+        pendingImg = null;
+        showImgAnim();
+        imgAnimating = false;
+        imgSwapTimer = null;
+      }, TRANS_MS);
+    } else {
+      applyImgPayload(d);
+      showImgAnim();
+    }
+  }
+
+  function showImgAnim() {
+    if (imageAnimMode === 'none') {
+      imgWrap.style.opacity = '1';
+      imgWrap.style.transform = 'none';
+      imgWrap.className = posClass('img');
+      imgVisible = true;
+      return;
+    }
+    if (imageAnimMode === 'fade') {
+      imgWrap.style.opacity = '';
+      imgWrap.style.transform = 'none';
+      imgWrap.className = posClass('img') + ' anim-fade-in';
+      imgVisible = true;
+      return;
+    }
+    imgWrap.style.opacity = ''; imgWrap.style.transform = '';
+    imgWrap.className = posClass('img') + ' anim-show-wrap';
+    imgVisible = true;
+  }
+
+  function hideImg() {
+    if (!imgVisible) return;
+    if (imageAnimMode === 'none') {
+      imgWrap.style.opacity = '0';
+      imgWrap.className = posClass('img');
+      imgVisible = false;
+      return;
+    }
+    if (imageAnimMode === 'fade') imgWrap.className = posClass('img') + ' anim-fade-out';
+    else imgWrap.className = posClass('img') + ' anim-hide';
+    setTimeout(function() {
+      imgWrap.style.opacity = '0';
+      imgWrap.style.transform = (imageAnimMode === 'fade') ? 'none' : 'translateX(-60px)';
+      imgWrap.className = posClass('img');
+      imgVisible = false;
+    }, 300);
+  }
+
+  /* ═══════════ Multi-group Image System ═══════════ */
+
+  function imgGrpPosStyle(pos, ox, oy) {
+    /* 9-point positioning — same logic as appPosStyle */
+    var p = pos || 'bl';
+    var css = {};
+    var h = p.length === 2 ? p.charAt(1) : 'l';
+    if (p === 'cl') h = 'l'; else if (p === 'cc') h = 'c'; else if (p === 'cr') h = 'r';
+    if (h === 'l') { css.left = (ox || 0) + 'px'; css.right = 'auto'; }
+    else if (h === 'r') { css.right = (ox || 0) + 'px'; css.left = 'auto'; }
+    else { css.left = 'calc(50% + ' + (ox || 0) + 'px)'; css.right = 'auto'; }
+    var v = p.charAt(0);
+    if (p === 'cl' || p === 'cc' || p === 'cr') v = 'c';
+    if (v === 't') { css.top = (oy || 0) + 'px'; css.bottom = 'auto'; }
+    else if (v === 'b') { css.bottom = (oy || 0) + 'px'; css.top = 'auto'; }
+    else { css.top = 'calc(50% + ' + (oy || 0) + 'px)'; css.bottom = 'auto'; }
+    return css;
+  }
+
+  function imgGrpTransformFor(pos) {
+    /* center axes need translate(-50%) like apps */
+    var p = pos || 'bl';
+    var h = p.length === 2 ? p.charAt(1) : 'l';
+    if (p === 'cl') h = 'l'; else if (p === 'cc') h = 'c'; else if (p === 'cr') h = 'r';
+    var v = p.charAt(0);
+    if (p === 'cl' || p === 'cc' || p === 'cr') v = 'c';
+    var parts = [];
+    if (h === 'c') parts.push('translateX(-50%)');
+    if (v === 'c') parts.push('translateY(-50%)');
+    return parts.length ? parts.join(' ') : '';
+  }
+
+  function imgGrpSlideInName(dir) {
+    var map = { left: 'igSlideInL', right: 'igSlideInR', up: 'igSlideInU', down: 'igSlideInD' };
+    return map[dir] || 'igSlideInL';
+  }
+  function imgGrpSlideOutName(dir) {
+    var map = { left: 'igSlideOutL', right: 'igSlideOutR', up: 'igSlideOutU', down: 'igSlideOutD' };
+    return map[dir] || 'igSlideOutL';
+  }
+
+  function imgGrpApplyLayout(imgEl, scalePct, fitCanvas) {
+    var desiredW = Math.max(1, Math.round(CANVAS_W * (scalePct || 100) / 100));
+    var fit = (fitCanvas !== undefined) ? fitCanvas : imageFitCanvasDefault;
+    function run() {
+      var nw = imgEl.naturalWidth, nh = imgEl.naturalHeight;
+      if (!nw || !nh) return;
+      if (fit) {
+        var rw = desiredW, rh = nh * (rw / nw);
+        var s = Math.min(1, CANVAS_W / rw, CANVAS_H / rh);
+        rw = Math.max(1, Math.round(rw * s));
+        rh = Math.max(1, Math.round(rh * s));
+        imgEl.style.width = rw + 'px'; imgEl.style.height = rh + 'px';
+        imgEl.style.maxWidth = ''; imgEl.style.maxHeight = '';
+      } else {
+        imgEl.style.width = desiredW + 'px'; imgEl.style.height = 'auto';
+        imgEl.style.maxWidth = 'none'; imgEl.style.maxHeight = 'none';
+      }
+    }
+    imgEl.onload = run;
+    if (imgEl.complete && imgEl.naturalWidth) run();
+  }
+
+  function imgGrpApplyPosition(wrapEl, gd) {
+    var pos = gd.position || 'bl';
+    var ox = (gd.offsetX || 0) + imgGlobalOx;
+    var oy = (gd.offsetY || 0) + imgGlobalOy;
+    var css = imgGrpPosStyle(pos, ox, oy);
+    for (var k in css) wrapEl.style[k] = css[k];
+    var baseTf = imgGrpTransformFor(pos);
+    wrapEl.style.transform = baseTf || '';
+    /* Store base transform for slide keyframes */
+    wrapEl.style.setProperty('--ig-base-tf', baseTf || 'translateX(0)');
+  }
+
+  function imgGrpApplyFloat(entry, gd) {
+    /* Float is applied to the IMG element (child), NOT the wrapper.
+       This completely isolates float animation from wrapper position transforms. */
+    var imgEl = entry.img;
+    if (gd.floatEnabled) {
+      imgEl.style.setProperty('--float-speed', (gd.floatSpeed || 3) + 's');
+      imgEl.style.setProperty('--float-mag', (gd.floatMag || 15) + 'px');
+      if (!imgEl.classList.contains('ig-float')) imgEl.classList.add('ig-float');
+    } else {
+      imgEl.classList.remove('ig-float');
+    }
+  }
+
+  function imgGrpCreate(groupId) {
+    var wrapEl = document.createElement('div');
+    wrapEl.className = 'img-group-wrap';
+    wrapEl.id = 'img-group-' + groupId;
+    wrapEl.style.opacity = '0';
+    var imgEl = document.createElement('img');
+    imgEl.draggable = false;
+    imgEl.alt = '';
+    wrapEl.appendChild(imgEl);
+    if (imgGroupContainer) imgGroupContainer.appendChild(wrapEl);
+    var entry = { wrap: wrapEl, img: imgEl, visible: false, animating: false, swapTimer: null, lastArgs: null, groupData: null };
+    imgGroupFrames[groupId] = entry;
+    return entry;
+  }
+
+  function imgGrpGetOrCreate(groupId) {
+    return imgGroupFrames[groupId] || imgGrpCreate(groupId);
+  }
+
+  function handleImgGroupShow(d) {
+    var gid = d.groupId;
+    if (!gid && gid !== 0) return;
+    var entry = imgGrpGetOrCreate(gid);
+    var gd = {
+      position: d.position || 'bl', offsetX: d.offsetX || 0, offsetY: d.offsetY || 0,
+      animType: d.animType || 'fade', fadeDir: d.fadeDir || 'left',
+      floatEnabled: !!d.floatEnabled, floatSpeed: d.floatSpeed || 3, floatMag: d.floatMag || 15
+    };
+    entry.groupData = gd;
+    entry.lastArgs = d;
+
+    if (entry.visible) {
+      /* ── Swap within same group (same or different image) ── */
+      /* Always use the group's configured animation: out → apply new settings → in */
+      var newSrc = encodePathForSrc(d.src || '');
+
+      /* Cancel any in-progress animation */
+      if (entry.swapTimer) { clearTimeout(entry.swapTimer); entry.swapTimer = null; }
+      if (entry.swapEndHandler) {
+        entry.wrap.removeEventListener('animationend', entry.swapEndHandler);
+        entry.swapEndHandler = null;
+      }
+      if (entry.animating) {
+        entry.wrap.style.animation = '';
+        entry.animating = false;
+      }
+
+      if (gd.animType === 'none') {
+        imgGrpApplyPosition(entry.wrap, gd);
+        entry.img.src = newSrc;
+        imgGrpApplyLayout(entry.img, d.scale, d.fitCanvas);
+        imgGrpApplyFloat(entry, gd);
+        return;
+      }
+      entry.animating = true;
+      imgGrpAnimOut(entry, gd);
+      var swapDone = false;
+      function doSwap() {
+        if (swapDone) return;
+        swapDone = true;
+        if (entry.swapTimer) { clearTimeout(entry.swapTimer); entry.swapTimer = null; }
+        if (entry.swapEndHandler) {
+          entry.wrap.removeEventListener('animationend', entry.swapEndHandler);
+          entry.swapEndHandler = null;
+        }
+        entry.wrap.style.animation = '';
+        entry.groupData = gd;
+        entry.lastArgs = d;
+        imgGrpApplyPosition(entry.wrap, gd);
+        entry.img.src = newSrc;
+        imgGrpApplyLayout(entry.img, d.scale, d.fitCanvas);
+        imgGrpAnimIn(entry, gd);
+        imgGrpApplyFloat(entry, gd);
+        entry.animating = false;
+      }
+      entry.swapEndHandler = function handler() { doSwap(); };
+      entry.wrap.addEventListener('animationend', entry.swapEndHandler);
+      entry.swapTimer = setTimeout(doSwap, TRANS_MS);
+      return;
+    }
+
+    /* ── First show ── */
+    imgGrpApplyPosition(entry.wrap, gd);
+    entry.img.src = encodePathForSrc(d.src || '');
+    entry.img.onerror = function() { entry.img.alt = 'Image not found'; };
+    imgGrpApplyLayout(entry.img, d.scale, d.fitCanvas);
+    imgGrpAnimIn(entry, gd);
+    imgGrpApplyFloat(entry, gd);
+    entry.visible = true;
+  }
+
+  function handleImgGroupUpdate(d) {
+    /* Update position/float/settings WITHOUT re-triggering entrance animation */
+    var gid = d.groupId;
+    if (!gid && gid !== 0) return;
+    var entry = imgGroupFrames[gid];
+    if (!entry || !entry.visible) return;
+    /* Skip if mid-animation — settings will be applied when animation completes via doSwap */
+    if (entry.animating) return;
+    var gd = {
+      position: d.position || 'bl', offsetX: d.offsetX || 0, offsetY: d.offsetY || 0,
+      animType: d.animType || 'fade', fadeDir: d.fadeDir || 'left',
+      floatEnabled: !!d.floatEnabled, floatSpeed: d.floatSpeed || 3, floatMag: d.floatMag || 15
+    };
+    entry.groupData = gd;
+    entry.lastArgs = d;
+    imgGrpApplyPosition(entry.wrap, gd);
+    imgGrpApplyLayout(entry.img, d.scale, d.fitCanvas);
+    imgGrpApplyFloat(entry, gd);
+  }
+
+  function imgGrpAnimIn(entry, gd) {
+    var w = entry.wrap;
+    var anim = gd.animType || 'fade';
+    if (anim === 'none') {
+      w.style.opacity = '1';
+      entry.visible = true;
+      return;
+    }
+    if (anim === 'fade') {
+      w.style.animation = 'igFadeIn 0.28s ease-out forwards';
+      w.addEventListener('animationend', function handler() {
+        w.removeEventListener('animationend', handler);
+        w.style.animation = '';
+        w.style.opacity = '1';
+      });
+      entry.visible = true;
+      return;
+    }
+    /* Slide: clear inline transform so keyframe --ig-base-tf takes effect without conflict */
+    var dir = gd.fadeDir || 'left';
+    var kfName = imgGrpSlideInName(dir);
+    w.style.transform = '';
+    w.style.animation = kfName + ' 0.5s cubic-bezier(.16,1,.3,1) forwards';
+    w.addEventListener('animationend', function handler() {
+      w.removeEventListener('animationend', handler);
+      w.style.animation = '';
+      w.style.opacity = '1';
+      /* Restore inline transform from --ig-base-tf after animation completes */
+      var baseTf = w.style.getPropertyValue('--ig-base-tf');
+      if (baseTf) w.style.transform = baseTf;
+    });
+    entry.visible = true;
+  }
+
+  function imgGrpAnimOut(entry, gd) {
+    var w = entry.wrap;
+    var anim = gd.animType || 'fade';
+    if (anim === 'none') {
+      w.style.opacity = '0';
+      return;
+    }
+    if (anim === 'fade') {
+      w.style.animation = 'igFadeOut 0.22s ease-in forwards';
+      return;
+    }
+    /* Slide out: clear inline transform so keyframe --ig-base-tf takes effect */
+    var dir = gd.fadeDir || 'left';
+    var kfName = imgGrpSlideOutName(dir);
+    w.style.transform = '';
+    w.style.animation = kfName + ' 0.28s ease-in forwards';
+  }
+
+  function handleImgGroupHide(d) {
+    var gid = d.groupId;
+    if (!gid && gid !== 0) return;
+    var entry = imgGroupFrames[gid];
+    if (!entry || !entry.visible) return;
+    if (entry.swapTimer) { clearTimeout(entry.swapTimer); entry.swapTimer = null; }
+    if (entry.swapEndHandler) { entry.wrap.removeEventListener('animationend', entry.swapEndHandler); entry.swapEndHandler = null; }
+    var gd = entry.groupData || { animType: 'fade', fadeDir: 'left', position: 'bl' };
+    if (gd.animType === 'none') {
+      entry.wrap.style.opacity = '0';
+      entry.wrap.style.animation = '';
+      entry.img.classList.remove('ig-float');
+      entry.visible = false;
+      entry.animating = false;
+      return;
+    }
+    entry.animating = true;
+    imgGrpAnimOut(entry, gd);
+    setTimeout(function() {
+      entry.wrap.style.opacity = '0';
+      entry.wrap.style.animation = '';
+      entry.img.classList.remove('ig-float');
+      entry.visible = false;
+      entry.animating = false;
+    }, TRANS_MS);
+  }
+
+  function handleImgGroupSwitch(d) {
+    handleImgGroupShow(d);
+  }
+
+  function handleImgGroupClear() {
+    for (var gid in imgGroupFrames) {
+      if (!imgGroupFrames.hasOwnProperty(gid)) continue;
+      var entry = imgGroupFrames[gid];
+      try { if (entry.swapTimer) clearTimeout(entry.swapTimer); } catch(e) {}
+      try { if (entry.wrap && entry.wrap.parentNode) entry.wrap.parentNode.removeChild(entry.wrap); } catch(e) {}
+    }
+    imgGroupFrames = {};
+  }
+
+  function handleImgGroupSync(d) {
+    /* Full state restore from sync: d.imgGroupState = { groupId: { src, scale, ... groupData } } */
+    var state = d.imgGroupState;
+    if (!state || typeof state !== 'object') return;
+    /* Remove groups no longer in state */
+    for (var gid in imgGroupFrames) {
+      if (!imgGroupFrames.hasOwnProperty(gid)) continue;
+      if (!state[gid]) {
+        handleImgGroupHide({ groupId: parseInt(gid, 10) });
+      }
+    }
+    /* Show/update groups in state */
+    for (var gid2 in state) {
+      if (!state.hasOwnProperty(gid2)) continue;
+      var gs = state[gid2];
+      if (gs && gs.src) {
+        gs.groupId = parseInt(gid2, 10);
+        var existing = imgGroupFrames[gid2];
+        if (existing && existing.animating) continue; /* Don't interrupt in-progress animation */
+        if (existing && existing.visible) {
+          handleImgGroupUpdate(gs);
+        } else {
+          handleImgGroupShow(gs);
+        }
+      }
+    }
+  }
+
+  function renderPreviewBoxes(d) {
+    previewLayer.innerHTML = '';
+    if (d.gridLines) {
+      var grid = document.createElement('div');
+      grid.className = 'preview-grid-lines';
+      previewLayer.appendChild(grid);
+    }
+    var posCh = d.chapterPos || chapterPosition;
+    var posTc = d.titleCardPos || titleCardPosition;
+    var posIm = d.imagePos || imagePosition;
+    if (d.chapter && d.chapter.show) {
+      addPreview('CH', posCh, d.chapter.ox || 0, d.chapter.oy || 0, d.chapter.gox || 0, d.chapter.goy || 0, 320, 120);
+    }
+    if (d.titlecard && d.titlecard.show) {
+      addPreview('TitleCard', posTc, d.titlecard.ox || 0, d.titlecard.oy || 0, d.titlecard.gox || 0, d.titlecard.goy || 0, 280, 100);
+    }
+    if (d.image && d.image.show) {
+      addPreview('Image', posIm, d.image.ox || 0, d.image.oy || 0, d.image.gox || 0, d.image.goy || 0, 200, 120);
+    }
+  }
+
+  function addPreview(label, pos, iox, ioy, gox, goy, w, h) {
+    var x = 80 + (gox || 0) + (iox || 0);
+    var y = 80 + (goy || 0) + (ioy || 0);
+    var box = document.createElement('div');
+    box.className = 'preview-box';
+    box.textContent = label;
+    if (pos === 'bl') {
+      box.style.left = x + 'px';
+      box.style.bottom = y + 'px';
+      box.style.top = 'auto';
+      box.style.right = 'auto';
+    } else if (pos === 'br') {
+      box.style.right = x + 'px';
+      box.style.bottom = y + 'px';
+      box.style.top = 'auto';
+      box.style.left = 'auto';
+    } else if (pos === 'tl') {
+      box.style.left = x + 'px';
+      box.style.top = y + 'px';
+      box.style.bottom = 'auto';
+      box.style.right = 'auto';
+    } else {
+      box.style.right = x + 'px';
+      box.style.top = y + 'px';
+      box.style.bottom = 'auto';
+      box.style.left = 'auto';
+    }
+    box.style.width = w + 'px';
+    box.style.height = h + 'px';
+    previewLayer.appendChild(box);
+  }
+})();
+</script>
+</body>
+</html>

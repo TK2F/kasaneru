@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Kurukuru Spin</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* ctrl mode: allow scrolling for long control panels */
+body.ctrl-mode {
+  overflow-y: auto;
+  overflow-x: hidden;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.roulette-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding: 12px;
+}
+
+/* ── Wheel mode ── */
+.wheel-box { position: relative; width: 280px; height: 280px; }
+canvas#wheel { width: 100%; height: 100%; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.5)); }
+.wheel-pointer {
+  position: absolute; top: -6px; left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 12px solid transparent; border-right: 12px solid transparent;
+  border-top: 24px solid var(--acc, #e8002d);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); z-index: 5;
+}
+.wheel-center {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 44px; height: 44px;
+  background: rgba(0,0,0,0.7); border-radius: 50%;
+  border: 3px solid var(--acc, #e8002d);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 900;
+  cursor: pointer; z-index: 6; transition: transform 0.15s;
+}
+.wheel-center:hover { transform: translate(-50%,-50%) scale(1.1); }
+
+/* ── Reel mode ── */
+.reel-box {
+  position: relative;
+  width: 280px; height: 200px;
+  background: rgba(8,8,16,0.78);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+}
+.reel-viewport {
+  position: relative;
+  width: 100%; height: 100%;
+  overflow: hidden;
+}
+.reel-track {
+  position: absolute;
+  width: 100%; left: 0;
+  transition: none;
+}
+.reel-item {
+  width: 100%;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 22px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  color: #fff;
+}
+.reel-highlight {
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  height: 62px;
+  transform: translateY(-50%);
+  border-top: 2px solid var(--acc, #e8002d);
+  border-bottom: 2px solid var(--acc, #e8002d);
+  pointer-events: none;
+  z-index: 2;
+}
+.reel-fade-top, .reel-fade-bottom {
+  position: absolute; left: 0; right: 0;
+  height: 50px; pointer-events: none; z-index: 1;
+}
+.reel-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(8,8,16,0.9), transparent);
+}
+.reel-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(8,8,16,0.9), transparent);
+}
+
+.mode-wheel .reel-box { display: none; }
+.mode-reel .wheel-box { display: none; }
+
+.result-display {
+  margin-top: 10px; font-size: 22px; font-weight: 800;
+  text-align: center; min-height: 30px;
+  color: var(--acc, #e8002d);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  padding: 4px 12px;
+}
+
+/* ── Controls ── */
+.ctrl {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  width: 300px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.ctrl.hidden { display: none; }
+.ctrl-toggle {
+  position: absolute; top: 4px; right: 4px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.5); font-size: 16px;
+  cursor: pointer; padding: 4px 8px;
+  z-index: 10;
+}
+.ctrl-toggle:hover { color: #fff; background: rgba(255,255,255,0.15); }
+.noctrl-mode .ctrl-toggle { display: none; }
+
+.ctrl-row { display: flex; gap: 4px; align-items: center; margin-bottom: 2px; }
+.ctrl-input {
+  flex: 1; background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; font-size: 11px; padding: 5px 8px;
+  border-radius: 5px; font-family: inherit;
+}
+.ctrl-input:focus { outline: none; border-color: var(--acc, #e8002d); }
+.ctrl-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; font-size: 9px; font-weight: 600;
+  padding: 5px 8px; border-radius: 5px;
+  cursor: pointer; text-transform: uppercase;
+  font-family: 'Segoe UI', sans-serif;
+  white-space: nowrap;
+}
+.ctrl-btn:hover { background: rgba(255,255,255,0.15); }
+.ctrl-btn.accent { background: var(--acc, #e8002d); border-color: transparent; }
+.ctrl-btn.accent:hover { filter: brightness(1.15); }
+
+.ctrl-select {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; font-size: 10px; padding: 4px 6px;
+  border-radius: 5px; font-family: inherit;
+  cursor: pointer;
+}
+.ctrl-select:focus { outline: none; border-color: var(--acc, #e8002d); }
+
+.ctrl-label {
+  font-size: 8px; color: rgba(255,255,255,0.35);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.item-list {
+  max-height: 120px; overflow-y: auto;
+  margin-top: 4px;
+}
+.item-row {
+  display: flex; gap: 3px; align-items: center;
+  padding: 2px 0; font-size: 10px;
+}
+.item-row .item-num {
+  color: rgba(255,255,255,0.3); min-width: 16px; text-align: right;
+  font-size: 9px;
+}
+.item-row .item-color-swatch {
+  width: 14px; height: 14px; border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.2);
+  cursor: pointer; flex-shrink: 0;
+}
+.item-row .item-text {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  cursor: text;
+}
+.item-row .item-text:focus {
+  outline: none; background: rgba(255,255,255,0.08);
+  border-radius: 3px; padding: 0 4px;
+}
+.item-row button {
+  background: none; border: none; color: rgba(255,255,255,0.25);
+  cursor: pointer; font-size: 11px; padding: 0 2px;
+  line-height: 1;
+}
+.item-row button:hover { color: #ff3b30; }
+.item-row .item-up:hover, .item-row .item-dn:hover { color: #5ac8fa; }
+.item-count {
+  font-size: 9px; color: rgba(255,255,255,0.25);
+  text-align: right; margin-top: 2px;
+}
+
+.ctrl-section {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 4px; margin-top: 2px;
+}
+
+/* CSV textarea */
+.csv-area {
+  width: 100%; height: 60px; resize: vertical;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff; font-size: 10px; padding: 4px 6px;
+  border-radius: 5px; font-family: inherit;
+}
+.csv-area:focus { outline: none; border-color: var(--acc, #e8002d); }
+.csv-wrap { display: none; margin-top: 4px; }
+.csv-wrap.show { display: block; }
+
+</style>
+</head>
+<body>
+<div class="roulette-wrap mode-wheel" id="wrap">
+  <button class="ctrl-toggle" id="ctrl-toggle" title="Toggle controls">&#9881;</button>
+
+  <!-- Wheel mode display -->
+  <div class="wheel-box">
+    <div class="wheel-pointer"></div>
+    <canvas id="wheel" width="560" height="560"></canvas>
+    <div class="wheel-center" id="btn-spin">&#9654;</div>
+  </div>
+
+  <!-- Reel mode display -->
+  <div class="reel-box">
+    <div class="reel-viewport" id="reel-viewport">
+      <div class="reel-track" id="reel-track"></div>
+    </div>
+    <div class="reel-highlight"></div>
+    <div class="reel-fade-top"></div>
+    <div class="reel-fade-bottom"></div>
+  </div>
+
+  <div class="result-display" id="result"></div>
+
+  <div class="ctrl" id="ctrl">
+    <!-- Add item row -->
+    <div class="ctrl-row">
+      <input class="ctrl-input" id="new-item" placeholder="Add item... (Enter)">
+      <button class="ctrl-btn accent" id="btn-add">+Add</button>
+    </div>
+    <!-- Action buttons -->
+    <div class="ctrl-row">
+      <button class="ctrl-btn accent" id="btn-spin2">&#9654; Spin</button>
+      <button class="ctrl-btn" id="btn-reset">&#8635; Reset</button>
+      <button class="ctrl-btn" id="btn-clear">Clear All</button>
+    </div>
+    <!-- Item list -->
+    <div class="item-list" id="item-list"></div>
+    <div class="item-count" id="item-count"></div>
+
+    <!-- CSV Import/Export -->
+    <div class="ctrl-section">
+      <div class="ctrl-row">
+        <button class="ctrl-btn" id="btn-csv-toggle">CSV Import/Export</button>
+        <button class="ctrl-btn" id="btn-csv-export">&#8681; Export</button>
+        <input type="file" id="csv-file" accept=".csv,.txt,text/plain" style="display:none">
+        <button class="ctrl-btn" id="btn-csv-file">&#128193; File</button>
+      </div>
+      <div class="csv-wrap" id="csv-wrap">
+        <textarea class="csv-area" id="csv-area" placeholder="Paste items here (one per line)..."></textarea>
+        <div class="ctrl-row" style="margin-top:3px;">
+          <button class="ctrl-btn accent" id="btn-csv-import">Import</button>
+          <span class="ctrl-label">One item per line</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="ctrl-section">
+      <div class="ctrl-row">
+        <span class="ctrl-label">Mode</span>
+        <select class="ctrl-select" id="cfg-display-mode">
+          <option value="wheel">Wheel</option>
+          <option value="reel">Reel</option>
+        </select>
+        <span class="ctrl-label">Colors</span>
+        <select class="ctrl-select" id="cfg-color-mode">
+          <option value="auto">Auto</option>
+          <option value="individual">Individual</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Font</span>
+        <select class="ctrl-select" id="cfg-font">
+          <option value="'Yu Gothic UI','Segoe UI','Hiragino Kaku Gothic ProN',sans-serif">Gothic</option>
+          <option value="'Yu Mincho','Hiragino Mincho ProN',serif">Mincho</option>
+          <option value="'Consolas','Courier New',monospace">Mono</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Item Size</span>
+        <input type="range" id="cfg-fontsize-range" min="10" max="60" value="18" style="flex:1;accent-color:var(--acc,#e8002d);">
+        <span id="cfg-fontsize-val" style="font-size:10px;color:rgba(255,255,255,0.5);min-width:28px;">18</span>
+        <span class="ctrl-label" style="margin-left:6px">Color</span>
+        <input type="color" id="cfg-text-color" value="#ffffff" style="width:24px;height:20px;border:1px solid rgba(255,255,255,0.15);background:none;cursor:pointer;border-radius:3px;padding:0;">
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Result Size</span>
+        <input type="range" id="cfg-result-size" min="16" max="120" value="48" style="flex:1;accent-color:var(--acc,#e8002d);">
+        <span id="cfg-result-size-val" style="font-size:10px;color:rgba(255,255,255,0.5);min-width:28px;">48</span>
+        <span class="ctrl-label" style="margin-left:6px">Color</span>
+        <input type="color" id="cfg-result-color" value="#ffffff" style="width:24px;height:20px;border:1px solid rgba(255,255,255,0.15);background:none;cursor:pointer;border-radius:3px;padding:0;">
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Speed</span>
+        <input type="range" id="cfg-spin-speed" min="3" max="15" value="8" step="1" style="flex:1;accent-color:var(--acc,#e8002d);">
+        <span id="cfg-spin-speed-val" style="font-size:10px;color:rgba(255,255,255,0.5);min-width:24px;">8</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Brake</span>
+        <input type="range" id="cfg-brake-time" min="2" max="10" value="5" step="0.5" style="flex:1;accent-color:var(--acc,#e8002d);">
+        <span id="cfg-brake-time-val" style="font-size:10px;color:rgba(255,255,255,0.5);min-width:28px;">5s</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  /* ── DOM refs ── */
+  var canvasEl = document.getElementById('wheel');
+  var canvasCtx = canvasEl.getContext('2d');
+  var resultEl = document.getElementById('result');
+  var btnSpin = document.getElementById('btn-spin');
+  var ctrlEl = document.getElementById('ctrl');
+  var ctrlToggle = document.getElementById('ctrl-toggle');
+  var wrapEl = document.getElementById('wrap');
+  var newInput = document.getElementById('new-item');
+  var itemListEl = document.getElementById('item-list');
+  var itemCountEl = document.getElementById('item-count');
+  var reelTrack = document.getElementById('reel-track');
+  var reelViewport = document.getElementById('reel-viewport');
+
+  /* ── State ── */
+  var items = [];        /* array of { text: string, color: string|null } */
+  var spinning = false;
+  var currentAngle = 0;
+  var animFrame = null;
+  var showCtrl = true;
+  var noctrlMode = false;
+  var displayMode = 'wheel';  /* 'wheel' | 'reel' */
+  var fontFamily = "'Yu Gothic UI','Segoe UI','Hiragino Kaku Gothic ProN',sans-serif";
+  var fontSize = 18;          /* px */
+  var textColor = '#ffffff';
+  var bgColor = '#1a1a2e';
+  var colorMode = 'auto';     /* 'auto' | 'individual' */
+  var resultFontSize = 48;
+  var resultColor = '#ffffff';
+  var spinSpeed = 8;       /* 1-15 scale, maps to radians/frame for wheel */
+  var brakeTime = 5;       /* seconds for deceleration */
+  var decelerating = false; /* true during decel animation */
+  var _currentSpeed = 0;    /* stored wheel speed for stopWheel */
+  var _currentReelSpeed = 0; /* stored reel speed for stopReel */
+  var _currentReelYPos = 0;  /* stored reel Y position for stopReel */
+
+  var PALETTE = [
+    '#e8002d','#ff9500','#34c759','#007aff',
+    '#af52de','#ff2d55','#5ac8fa','#ffcc00',
+    '#ff6b6b','#48dbfb','#feca57','#1dd1a1',
+    '#54a0ff','#c44569','#f8a5c2','#786fa6'
+  ];
+
+  /* fontSize is now a raw px number; legacy string values converted in loadItems */
+  function fontSizePx() { return typeof fontSize === 'number' ? fontSize : 18; }
+  function wheelFontSizePx() { return Math.max(8, Math.round(fontSizePx() * 0.7)); }
+
+  /* ── Helpers ── */
+  function getColor(idx) {
+    if (colorMode === 'individual' && items[idx] && items[idx].color) {
+      return items[idx].color;
+    }
+    return PALETTE[idx % PALETTE.length];
+  }
+
+  function getItemText(idx) {
+    return items[idx] ? items[idx].text : '';
+  }
+
+  function makeItem(text, color) {
+    return { text: String(text).trim(), color: color || null };
+  }
+
+  function itemTexts() {
+    var arr = [];
+    for (var i = 0; i < items.length; i++) arr.push(items[i].text);
+    return arr;
+  }
+
+  function serializeItems() {
+    var arr = [];
+    for (var i = 0; i < items.length; i++) {
+      arr.push({ text: items[i].text, color: items[i].color });
+    }
+    return arr;
+  }
+
+  /* ── Persistence ── */
+  function saveItems() {
+    try {
+      localStorage.setItem('lt_roulette_items', JSON.stringify(serializeItems()));
+      localStorage.setItem('lt_roulette_style', JSON.stringify({
+        fontFamily: fontFamily, fontSize: fontSize,
+        textColor: textColor, bgColor: bgColor,
+        resultFontSize: resultFontSize,
+        resultColor: resultColor, spinSpeed: spinSpeed, brakeTime: brakeTime
+      }));
+    } catch(e) {}
+  }
+
+  function loadItems() {
+    try {
+      var s = localStorage.getItem('lt_roulette_items');
+      if (s) {
+        var arr = JSON.parse(s);
+        if (Array.isArray(arr)) {
+          items = [];
+          for (var i = 0; i < arr.length; i++) {
+            if (typeof arr[i] === 'string') {
+              items.push(makeItem(arr[i], null));
+            } else if (arr[i] && arr[i].text) {
+              items.push(makeItem(arr[i].text, arr[i].color || null));
+            }
+          }
+        }
+      }
+      var st = localStorage.getItem('lt_roulette_style');
+      if (st) {
+        var d = JSON.parse(st);
+        if (d.fontFamily) fontFamily = d.fontFamily;
+        if (typeof d.fontSize === 'number') fontSize = d.fontSize;
+        else if (typeof d.fontSize === 'string') {
+          /* Legacy: 'small'→14, 'medium'→18, 'large'→28 */
+          var legacyMap = { small: 14, medium: 18, large: 28 };
+          fontSize = legacyMap[d.fontSize] || 18;
+        }
+        if (d.textColor) textColor = d.textColor;
+        if (d.bgColor) bgColor = d.bgColor;
+        if (typeof d.resultFontSize === 'number') resultFontSize = d.resultFontSize;
+        if (d.resultColor) resultColor = d.resultColor;
+        if (typeof d.spinSpeed === 'number') spinSpeed = d.spinSpeed;
+        if (typeof d.brakeTime === 'number') brakeTime = d.brakeTime;
+      }
+    } catch(e) {}
+  }
+
+  /* ── Display mode ── */
+  function setDisplayMode(mode) {
+    displayMode = mode;
+    wrapEl.className = 'roulette-wrap mode-' + displayMode;
+    if (noctrlMode) wrapEl.classList.add('noctrl-mode');
+    var sel = document.getElementById('cfg-display-mode');
+    if (sel) sel.value = displayMode;
+  }
+
+  /* ── Font settings ── */
+  function applyFontSettings() {
+    resultEl.style.fontFamily = fontFamily;
+    resultEl.style.fontSize = resultFontSize + 'px';
+    resultEl.style.color = resultColor;
+  }
+
+  /* ── Draw Wheel ── */
+  function drawWheel() {
+    var w = canvasEl.width, h = canvasEl.height;
+    var cx = w / 2, cy = h / 2, r = Math.min(cx, cy) - 8;
+    canvasCtx.clearRect(0, 0, w, h);
+
+    if (!items.length) {
+      canvasCtx.fillStyle = 'rgba(255,255,255,0.06)';
+      canvasCtx.beginPath(); canvasCtx.arc(cx, cy, r, 0, Math.PI * 2); canvasCtx.fill();
+      canvasCtx.fillStyle = 'rgba(255,255,255,0.2)';
+      canvasCtx.font = '16px sans-serif'; canvasCtx.textAlign = 'center'; canvasCtx.textBaseline = 'middle';
+      canvasCtx.fillText('Add items to spin', cx, cy);
+      return;
+    }
+
+    var slice = (Math.PI * 2) / items.length;
+    var wfs = wheelFontSizePx();
+    var labelFont = Math.max(9, Math.min(wfs, 140 / items.length));
+
+    for (var i = 0; i < items.length; i++) {
+      var sa = currentAngle + i * slice;
+      var ea = sa + slice;
+      canvasCtx.beginPath(); canvasCtx.moveTo(cx, cy); canvasCtx.arc(cx, cy, r, sa, ea); canvasCtx.closePath();
+      canvasCtx.fillStyle = getColor(i); canvasCtx.fill();
+      canvasCtx.strokeStyle = 'rgba(0,0,0,0.15)'; canvasCtx.lineWidth = 2; canvasCtx.stroke();
+
+      canvasCtx.save(); canvasCtx.translate(cx, cy); canvasCtx.rotate(sa + slice / 2);
+      canvasCtx.fillStyle = textColor;
+      canvasCtx.font = 'bold ' + labelFont + 'px ' + fontFamily;
+      canvasCtx.textAlign = 'center'; canvasCtx.textBaseline = 'middle';
+      var t = items[i].text;
+      if (t.length > 10) t = t.substring(0, 9) + '\u2026';
+      canvasCtx.fillText(t, r * 0.6, 0);
+      canvasCtx.restore();
+    }
+    canvasCtx.beginPath(); canvasCtx.arc(cx, cy, r, 0, Math.PI * 2);
+    canvasCtx.strokeStyle = 'rgba(255,255,255,0.12)'; canvasCtx.lineWidth = 3; canvasCtx.stroke();
+  }
+
+  /* ── Build Reel ── */
+  var REEL_ITEM_H = 60;
+
+  function buildReelItems() {
+    reelTrack.innerHTML = '';
+    if (!items.length) return;
+    /* repeat items enough times to fill visual space and allow animation */
+    var repeats = Math.max(20, items.length * 4);
+    for (var i = 0; i < repeats; i++) {
+      var idx = i % items.length;
+      var div = document.createElement('div');
+      div.className = 'reel-item';
+      div.style.height = REEL_ITEM_H + 'px';
+      div.style.background = getColor(idx);
+      div.style.fontFamily = fontFamily;
+      div.style.fontSize = fontSizePx() + 'px';
+      div.style.color = textColor;
+      var reelText = items[idx].text;
+      if (reelText.length > 20) reelText = reelText.substring(0, 19) + '\u2026';
+      div.textContent = reelText;
+      reelTrack.appendChild(div);
+    }
+  }
+
+  /* ── Render display ── */
+  function renderDisplay() {
+    if (displayMode === 'wheel') {
+      drawWheel();
+    } else {
+      buildReelItems();
+      /* center on first item */
+      var vpH = reelViewport.offsetHeight || 200;
+      var offset = (vpH / 2) - (REEL_ITEM_H / 2);
+      reelTrack.style.transform = 'translateY(' + offset + 'px)';
+    }
+  }
+
+  /* ── Spin (wheel mode) ── */
+  function spinWheel() {
+    if (!items.length) return;
+    if (decelerating) return; /* wait for deceleration to finish */
+    if (spinning) {
+      /* --- STOP --- */
+      stopWheel();
+      return;
+    }
+    /* --- START --- */
+    spinning = true;
+    decelerating = false;
+    resultEl.textContent = '';
+    resultEl.style.opacity = '0.5';
+    updateSpinButton();
+
+    var speed = spinSpeed / 50; /* radians per frame @60fps */
+    _currentSpeed = speed;
+    var speedPerSec = speed * 60; /* radians per second — frame-rate independent */
+
+    bcSend({ cmd: 'spinning', speed: speedPerSec, mode: 'wheel' });
+
+    var lastT = Date.now();
+    function anim() {
+      if (!spinning) return;
+      var now = Date.now();
+      var dt = (now - lastT) / 1000;
+      lastT = now;
+      currentAngle += speedPerSec * dt;
+      drawWheel();
+      animFrame = requestAnimationFrame(anim);
+    }
+    anim();
+  }
+
+  function stopWheel() {
+    if (!spinning) return;
+    if (decelerating) return;
+    spinning = false;
+    decelerating = true;
+    if (animFrame) cancelAnimationFrame(animFrame);
+    animFrame = null;
+
+    /* ── DETERMINE WINNER NOW (before animation) ── */
+    var sliceSize = (Math.PI * 2) / items.length;
+    var winIdx = Math.floor(Math.random() * items.length);
+    var winText = items[winIdx].text;
+
+    /* Calculate targetAngle so winner slice center lands under pointer (top = 1.5pi) */
+    var extraRotations = Math.PI * 2 * (3 + Math.floor(Math.random() * 3));
+    var sliceCenter = winIdx * sliceSize + sliceSize / 2;
+    var currentNorm = currentAngle % (Math.PI * 2);
+    if (currentNorm < 0) currentNorm += Math.PI * 2;
+    var pointerNow = (Math.PI * 2 - currentNorm + Math.PI * 1.5) % (Math.PI * 2);
+    var angleDiff = (pointerNow - sliceCenter + Math.PI * 2) % (Math.PI * 2);
+    var targetAngle = currentAngle + extraRotations + angleDiff;
+
+    var startAngle = currentAngle;
+    var decelDur = brakeTime * 1000;
+
+    /* Send to overlay: both sides animate to same targetAngle */
+    bcSend({ cmd: 'stopped', startAngle: startAngle, targetAngle: targetAngle,
+             winText: winText, brakeTime: brakeTime, mode: 'wheel' });
+
+    /* Animate dock side */
+    var decelStart = Date.now();
+    function decel() {
+      var elapsed = Date.now() - decelStart;
+      var p = Math.min(1, elapsed / decelDur);
+      /* Cubic ease-out: deterministic, same result regardless of frame rate */
+      var ease = 1 - Math.pow(1 - p, 3);
+      currentAngle = startAngle + (targetAngle - startAngle) * ease;
+      drawWheel();
+      if (p < 1) {
+        animFrame = requestAnimationFrame(decel);
+      } else {
+        animFrame = null;
+        decelerating = false;
+        showResult(winText);
+        updateSpinButton();
+      }
+    }
+    decel();
+  }
+
+  /* ── Spin (reel mode) ── */
+  function spinReel() {
+    if (!items.length) return;
+    if (decelerating) return;
+    if (spinning) {
+      stopReel();
+      return;
+    }
+    spinning = true;
+    decelerating = false;
+    resultEl.textContent = '';
+    resultEl.style.opacity = '0.5';
+    updateSpinButton();
+    buildReelItems();
+
+    var vpH = reelViewport.offsetHeight || 200;
+    var yPos = (vpH / 2) - (REEL_ITEM_H / 2);
+    var speed = spinSpeed * 3; /* px per frame @60fps */
+    _currentReelSpeed = speed;
+    var speedPerSec = speed * 60; /* px per second — frame-rate independent */
+    var totalH = items.length * REEL_ITEM_H;
+
+    bcSend({ cmd: 'spinning', speed: speedPerSec, mode: 'reel' });
+
+    var lastT = Date.now();
+    function anim() {
+      if (!spinning) return;
+      var now = Date.now();
+      var dt = (now - lastT) / 1000;
+      lastT = now;
+      yPos -= speedPerSec * dt;
+      if (yPos < -totalH * 2) yPos += totalH;
+      _currentReelYPos = yPos;
+      reelTrack.style.transform = 'translateY(' + yPos + 'px)';
+      animFrame = requestAnimationFrame(anim);
+    }
+    anim();
+  }
+
+  function stopReel() {
+    if (!spinning) return;
+    if (decelerating) return;
+    spinning = false;
+    decelerating = true;
+    if (animFrame) cancelAnimationFrame(animFrame);
+    animFrame = null;
+
+    /* DETERMINE WINNER NOW */
+    var winIdx = Math.floor(Math.random() * items.length);
+    var winText = items[winIdx].text;
+
+    var vpH = reelViewport.offsetHeight || 200;
+    var totalH = items.length * REEL_ITEM_H;
+    var startY = _currentReelYPos || 0;
+    /* Target: winIdx centered, deep enough in the repeated track */
+    var deepIdx = items.length * 2 + winIdx;
+    var targetY = -(deepIdx * REEL_ITEM_H) + (vpH / 2) - (REEL_ITEM_H / 2);
+    /* Ensure forward motion (targetY < startY) */
+    while (targetY > startY) targetY -= totalH;
+
+    var decelDur = brakeTime * 1000;
+
+    bcSend({ cmd: 'stopped', startY: startY, targetY: targetY,
+             winText: winText, brakeTime: brakeTime, mode: 'reel' });
+
+    var decelStart = Date.now();
+    function decel() {
+      var el = Date.now() - decelStart;
+      var p = Math.min(1, el / decelDur);
+      var ease = 1 - Math.pow(1 - p, 4); /* quartic ease-out for slot-machine feel */
+      var y = startY + (targetY - startY) * ease;
+      reelTrack.style.transform = 'translateY(' + y + 'px)';
+      if (p < 1) {
+        animFrame = requestAnimationFrame(decel);
+      } else {
+        animFrame = null;
+        decelerating = false;
+        showResult(winText);
+        updateSpinButton();
+      }
+    }
+    decel();
+  }
+
+  function updateSpinButton() {
+    var label = spinning ? '\u25A0' : '\u25B6'; /* ■ or ▶ */
+    btnSpin.textContent = label;
+    var btn2 = document.getElementById('btn-spin2');
+    if (btn2) btn2.textContent = spinning ? '\u25A0 Stop' : '\u25B6 Spin';
+  }
+
+  function doSpin() {
+    if (displayMode === 'wheel') {
+      spinWheel();
+    } else {
+      spinReel();
+    }
+  }
+
+  function showResult(text) {
+    resultEl.textContent = text;
+    resultEl.style.opacity = '1';
+  }
+
+  /* ── Item management ── */
+  function renderList() {
+    itemListEl.innerHTML = '';
+    for (var i = 0; i < items.length; i++) {
+      (function(idx) {
+        var row = document.createElement('div');
+        row.className = 'item-row';
+
+        var num = document.createElement('span');
+        num.className = 'item-num';
+        num.textContent = (idx + 1) + '.';
+
+        /* color swatch (only in individual mode) */
+        var swatch = document.createElement('input');
+        swatch.type = 'color';
+        swatch.className = 'item-color-swatch';
+        swatch.value = items[idx].color || getColor(idx);
+        swatch.title = 'Item color';
+        swatch.style.display = (colorMode === 'individual') ? 'block' : 'none';
+        swatch.addEventListener('input', function() {
+          items[idx].color = swatch.value;
+          renderDisplay();
+          saveItems();
+          bcSend({ cmd: 'set', items: serializeItems() });
+        });
+
+        var txt = document.createElement('span');
+        txt.className = 'item-text';
+        txt.textContent = items[idx].text;
+        txt.setAttribute('contenteditable', 'true');
+        txt.addEventListener('blur', function() {
+          var v = txt.textContent.trim();
+          if (v && v !== items[idx].text) {
+            items[idx].text = v;
+            renderDisplay();
+            saveItems();
+            bcSend({ cmd: 'set', items: serializeItems() });
+          } else if (!v) {
+            txt.textContent = items[idx].text;
+          }
+        });
+        txt.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); txt.blur(); }
+        });
+
+        var up = document.createElement('button');
+        up.className = 'item-up';
+        up.textContent = '\u25B2';
+        up.title = 'Move up';
+        up.addEventListener('click', function() {
+          if (spinning || decelerating) return;
+          if (idx <= 0) return;
+          var tmp = items[idx]; items[idx] = items[idx - 1]; items[idx - 1] = tmp;
+          renderList(); renderDisplay(); saveItems();
+          bcSend({ cmd: 'set', items: serializeItems() });
+        });
+
+        var dn = document.createElement('button');
+        dn.className = 'item-dn';
+        dn.textContent = '\u25BC';
+        dn.title = 'Move down';
+        dn.addEventListener('click', function() {
+          if (spinning || decelerating) return;
+          if (idx >= items.length - 1) return;
+          var tmp = items[idx]; items[idx] = items[idx + 1]; items[idx + 1] = tmp;
+          renderList(); renderDisplay(); saveItems();
+          bcSend({ cmd: 'set', items: serializeItems() });
+        });
+
+        var del = document.createElement('button');
+        del.textContent = '\u00D7';
+        del.title = 'Delete';
+        del.addEventListener('click', function() {
+          if (spinning || decelerating) return;
+          items.splice(idx, 1);
+          renderList(); renderDisplay(); saveItems();
+          bcSend({ cmd: 'set', items: serializeItems() });
+        });
+
+        row.appendChild(num);
+        row.appendChild(swatch);
+        row.appendChild(txt);
+        row.appendChild(up);
+        row.appendChild(dn);
+        row.appendChild(del);
+        itemListEl.appendChild(row);
+      })(i);
+    }
+    itemCountEl.textContent = items.length + ' items';
+  }
+
+  function addItem(text, color) {
+    if (spinning || decelerating) return; /* block during spin */
+    var v = String(text).trim();
+    if (!v) return;
+    items.push(makeItem(v, color || null));
+    renderList();
+    renderDisplay();
+    saveItems();
+  }
+
+  function doReset() {
+    spinning = false;
+    decelerating = false;
+    if (animFrame) cancelAnimationFrame(animFrame);
+    animFrame = null;
+    _currentSpeed = 0;
+    _currentReelSpeed = 0;
+    _currentReelYPos = 0;
+    currentAngle = 0;
+    resultEl.textContent = '';
+    resultEl.style.opacity = '1';
+    renderDisplay();
+    updateSpinButton();
+  }
+
+  function doClear() {
+    if (!items.length) return;
+    items = [];
+    currentAngle = 0;
+    resultEl.textContent = '';
+    renderList();
+    renderDisplay();
+    saveItems();
+  }
+
+  /* ── CSV Import/Export ── */
+  function exportCSV() {
+    var lines = [];
+    for (var i = 0; i < items.length; i++) lines.push(items[i].text);
+    var text = lines.join('\n');
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'roulette-items.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+  function importCSV(text) {
+    if (spinning || decelerating) return 0;
+    var lines = text.split(/\r?\n/);
+    var added = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (line) {
+        items.push(makeItem(line, null));
+        added++;
+      }
+    }
+    if (added > 0) {
+      renderList();
+      renderDisplay();
+      saveItems();
+      bcSend({ cmd: 'set', items: serializeItems() });
+    }
+    return added;
+  }
+
+  /* ── BroadcastChannel ── */
+  var params = new URLSearchParams(location.search);
+  var bcName = params.get('bc') || 'lt_app_kurukuru';
+  var ch = null;
+  try { ch = new BroadcastChannel(bcName); } catch(e) {}
+
+  function bcSend(msg) {
+    try { if (ch) ch.postMessage(msg); } catch(e) {}
+    /* Relay for cross-process OBS dock/overlay */
+    try { window.parent.postMessage({ type: 'lt_app_relay', appId: 'roulette', data: msg }, '*'); } catch(e) {}
+  }
+
+  /* ── Shared BC/relay message handler ── */
+  function handleBcMessage(d) {
+    if (!d) return;
+
+    /* Ctrl side: skip result/spinning/stopping/stopped to prevent self-echo */
+    if (showCtrl && (d.cmd === 'result' || d.cmd === 'spinning' || d.cmd === 'stopping' || d.cmd === 'stopped')) return;
+
+    if (d.cmd === 'spin') {
+      /* Only ctrl side should spin independently; overlay shows result via 'result' cmd */
+      if (showCtrl) doSpin();
+    }
+
+    if (d.cmd === 'spinning' && !showCtrl) {
+      resultEl.textContent = '';
+      resultEl.style.opacity = '0.5';
+      if (spinning || decelerating) return;
+      spinning = true;
+      updateSpinButton();
+      if (animFrame) cancelAnimationFrame(animFrame);
+
+      if ((d.mode || displayMode) === 'wheel') {
+        var oSpeed = d.speed || ((spinSpeed / 50) * 60); /* rad/sec — time-based */
+        var lastT = Date.now();
+        (function oAnim() {
+          if (!spinning) return;
+          var now = Date.now();
+          var dt = (now - lastT) / 1000;
+          lastT = now;
+          currentAngle += oSpeed * dt;
+          drawWheel();
+          animFrame = requestAnimationFrame(oAnim);
+        })();
+      } else {
+        buildReelItems();
+        var oVpH = reelViewport.offsetHeight || 200;
+        var oYPos = (oVpH / 2) - (REEL_ITEM_H / 2);
+        var oTotalH = items.length * REEL_ITEM_H;
+        var oRSpeed = d.speed || ((spinSpeed * 3) * 60); /* px/sec — time-based */
+        var lastT = Date.now();
+        (function oRAnim() {
+          if (!spinning) return;
+          var now = Date.now();
+          var dt = (now - lastT) / 1000;
+          lastT = now;
+          oYPos -= oRSpeed * dt;
+          if (oYPos < -oTotalH * 2) oYPos += oTotalH;
+          reelTrack.style.transform = 'translateY(' + oYPos + 'px)';
+          animFrame = requestAnimationFrame(oRAnim);
+        })();
+      }
+    }
+
+    if (d.cmd === 'stopped' && !showCtrl) {
+      /* Stop visual spin, animate to determined target */
+      spinning = false;
+      decelerating = true;
+      if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+
+      var decelDur = (d.brakeTime || brakeTime) * 1000;
+      var decelStart = Date.now();
+      var sWinText = d.winText || '';
+
+      if ((d.mode || displayMode) === 'wheel' && typeof d.targetAngle === 'number') {
+        /* Use overlay's current angle as start, dock's target as end */
+        var oStartAngle = currentAngle;
+        var oTargetAngle = d.targetAngle;
+        /* Ensure forward rotation */
+        while (oTargetAngle < oStartAngle) oTargetAngle += Math.PI * 2;
+
+        (function oDecel() {
+          var el = Date.now() - decelStart;
+          var p = Math.min(1, el / decelDur);
+          var ease = 1 - Math.pow(1 - p, 3);
+          currentAngle = oStartAngle + (oTargetAngle - oStartAngle) * ease;
+          drawWheel();
+          if (p < 1) {
+            animFrame = requestAnimationFrame(oDecel);
+          } else {
+            animFrame = null;
+            decelerating = false;
+            showResult(sWinText);
+            updateSpinButton();
+          }
+        })();
+      } else if ((d.mode || displayMode) === 'reel' && typeof d.targetY === 'number') {
+        var oStartY = 0;
+        try { var m = reelTrack.style.transform.match(/translateY\(([^)]+)px\)/); if (m) oStartY = parseFloat(m[1]); } catch(e) {}
+        var oTargetY = d.targetY;
+
+        (function oRDecel() {
+          var el = Date.now() - decelStart;
+          var p = Math.min(1, el / decelDur);
+          var ease = 1 - Math.pow(1 - p, 4);
+          var y = oStartY + (oTargetY - oStartY) * ease;
+          reelTrack.style.transform = 'translateY(' + y + 'px)';
+          if (p < 1) {
+            animFrame = requestAnimationFrame(oRDecel);
+          } else {
+            animFrame = null;
+            decelerating = false;
+            showResult(sWinText);
+            updateSpinButton();
+          }
+        })();
+      } else {
+        /* Fallback: just show result */
+        decelerating = false;
+        showResult(sWinText);
+        updateSpinButton();
+      }
+    }
+
+    if (d.cmd === 'set' && Array.isArray(d.items)) {
+      items = [];
+      for (var i = 0; i < d.items.length; i++) {
+        if (typeof d.items[i] === 'string') {
+          items.push(makeItem(d.items[i], null));
+        } else if (d.items[i] && d.items[i].text) {
+          items.push(makeItem(d.items[i].text, d.items[i].color || null));
+        }
+      }
+      renderList(); renderDisplay(); saveItems();
+    }
+
+    if (d.cmd === 'add' && d.text) { addItem(d.text, d.color || null); }
+    if (d.cmd === 'reset') { doReset(); }
+    if (d.cmd === 'clear') { doClear(); }
+
+    /* Safety fallback: result command forces correct display */
+    if (d.cmd === 'result' && d.text && !showCtrl) {
+      spinning = false;
+      decelerating = false;
+      if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+      updateSpinButton();
+      showResult(d.text);
+    }
+
+    if (d.cmd === 'config') {
+      if (d.accent) document.documentElement.style.setProperty('--acc', d.accent);
+      if (typeof d.showCtrl === 'boolean' && !noctrlMode) {
+        showCtrl = d.showCtrl;
+        ctrlEl.classList.toggle('hidden', !showCtrl);
+      }
+    }
+
+    if (d.cmd === 'style') {
+      if (d.displayMode) setDisplayMode(d.displayMode);
+      if (d.fontFamily) { fontFamily = d.fontFamily; applyFontSettings(); }
+      if (d.fontSize) { fontSize = d.fontSize; }
+      if (typeof d.resultFontSize === 'number') { resultFontSize = d.resultFontSize; applyFontSettings(); }
+      if (d.resultColor) { resultColor = d.resultColor; applyFontSettings(); }
+      if (d.colorMode) {
+        colorMode = d.colorMode;
+        var cms = document.getElementById('cfg-color-mode');
+        if (cms) cms.value = colorMode;
+        renderList();
+      }
+      renderDisplay();
+    }
+
+    if (d.cmd === 'getState') {
+      bcSend({
+        cmd: 'state',
+        items: serializeItems(),
+        currentAngle: currentAngle,
+        spinning: spinning,
+        showCtrl: showCtrl,
+        displayMode: displayMode,
+        fontFamily: fontFamily,
+        fontSize: fontSize,
+        colorMode: colorMode,
+        resultFontSize: resultFontSize,
+        resultColor: resultColor,
+        spinSpeed: spinSpeed,
+        brakeTime: brakeTime,
+        result: resultEl.textContent
+      });
+    }
+
+    if (d.cmd === 'state') {
+      if (Array.isArray(d.items)) {
+        items = [];
+        for (var j = 0; j < d.items.length; j++) {
+          if (typeof d.items[j] === 'string') {
+            items.push(makeItem(d.items[j], null));
+          } else if (d.items[j] && d.items[j].text) {
+            items.push(makeItem(d.items[j].text, d.items[j].color || null));
+          }
+        }
+      }
+      if (typeof d.currentAngle === 'number') currentAngle = d.currentAngle;
+      if (typeof d.showCtrl === 'boolean' && !noctrlMode) {
+        showCtrl = d.showCtrl;
+        ctrlEl.classList.toggle('hidden', !showCtrl);
+      }
+      if (d.displayMode) setDisplayMode(d.displayMode);
+      if (d.fontFamily) fontFamily = d.fontFamily;
+      if (d.fontSize) fontSize = d.fontSize;
+      if (d.colorMode) colorMode = d.colorMode;
+      if (typeof d.resultFontSize === 'number') resultFontSize = d.resultFontSize;
+      if (d.resultColor) resultColor = d.resultColor;
+      if (typeof d.spinSpeed === 'number') spinSpeed = d.spinSpeed;
+      if (typeof d.brakeTime === 'number') brakeTime = d.brakeTime;
+      if (d.result) showResult(d.result);
+      applyFontSettings();
+      renderList();
+      renderDisplay();
+      saveItems();
+    }
+  }
+
+  if (ch) {
+    ch.onmessage = function(e) { handleBcMessage(e.data); };
+  }
+
+  /* ── postMessage handler (theme sync + app relay) ── */
+  window.addEventListener('message', function(ev) {
+    var d = ev && ev.data;
+    if (!d) return;
+    if (d.cmd === 'lt_overlay_config' || d.type === 'lt_overlay_config') {
+      if (d.accentColor) document.documentElement.style.setProperty('--acc', d.accentColor);
+      if (d.accent) document.documentElement.style.setProperty('--acc', d.accent);
+    }
+    /* App relay: receive from dock via overlay relay chain */
+    if (d.type === 'lt_app_cmd' && d.data) {
+      handleBcMessage(d.data);
+    }
+  });
+
+  /* ── URL params ── */
+  if (params.get('noctrl') === '1') {
+    noctrlMode = true;
+    showCtrl = false;
+    ctrlEl.classList.add('hidden');
+    wrapEl.classList.add('noctrl-mode');
+  }
+  if (params.get('ctrl') === '1') {
+    noctrlMode = false;
+    showCtrl = true;
+    ctrlEl.classList.remove('hidden');
+    wrapEl.classList.remove('noctrl-mode');
+    document.body.classList.add('ctrl-mode');
+  }
+  if (params.get('mode') === 'reel') setDisplayMode('reel');
+
+  /* External CSS */
+  if (params.get('css')) {
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = params.get('css');
+    document.head.appendChild(link);
+  }
+
+  /* Initial items from URL */
+  if (params.get('items')) {
+    var urlItems = params.get('items').split('|');
+    for (var ui = 0; ui < urlItems.length; ui++) {
+      var trimmed = urlItems[ui].trim();
+      if (trimmed) items.push(makeItem(trimmed, null));
+    }
+  } else {
+    loadItems();
+  }
+
+  /* ── Wire up controls ── */
+  document.getElementById('btn-add').addEventListener('click', function() {
+    var text = newInput.value;
+    addItem(text);
+    bcSend({ cmd: 'add', text: text.trim() });
+    newInput.value = '';
+    newInput.focus();
+  });
+  newInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      var text = newInput.value;
+      addItem(text);
+      bcSend({ cmd: 'add', text: text.trim() });
+      newInput.value = '';
+    }
+  });
+
+  btnSpin.addEventListener('click', function() {
+    doSpin();
+    bcSend({ cmd: 'spin' });
+  });
+  document.getElementById('btn-spin2').addEventListener('click', function() {
+    doSpin();
+    bcSend({ cmd: 'spin' });
+  });
+  document.getElementById('btn-reset').addEventListener('click', function() {
+    doReset();
+    bcSend({ cmd: 'reset' });
+  });
+  document.getElementById('btn-clear').addEventListener('click', function() {
+    doClear();
+    bcSend({ cmd: 'clear' });
+  });
+  ctrlToggle.addEventListener('click', function() {
+    showCtrl = !showCtrl;
+    ctrlEl.classList.toggle('hidden', !showCtrl);
+  });
+
+  /* CSV controls */
+  var csvWrap = document.getElementById('csv-wrap');
+  var csvArea = document.getElementById('csv-area');
+  document.getElementById('btn-csv-toggle').addEventListener('click', function() {
+    csvWrap.classList.toggle('show');
+  });
+  document.getElementById('btn-csv-export').addEventListener('click', function() {
+    exportCSV();
+  });
+  document.getElementById('btn-csv-import').addEventListener('click', function() {
+    var text = csvArea.value;
+    var count = importCSV(text);
+    if (count > 0) csvArea.value = '';
+  });
+  var csvFileInput = document.getElementById('csv-file');
+  document.getElementById('btn-csv-file').addEventListener('click', function() {
+    csvFileInput.click();
+  });
+  csvFileInput.addEventListener('change', function() {
+    if (csvFileInput.files && csvFileInput.files[0]) {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        importCSV(ev.target.result);
+      };
+      reader.readAsText(csvFileInput.files[0]);
+      csvFileInput.value = '';
+    }
+  });
+
+  /* Display mode control */
+  var cfgDisplayMode = document.getElementById('cfg-display-mode');
+  cfgDisplayMode.addEventListener('change', function() {
+    setDisplayMode(cfgDisplayMode.value);
+    renderDisplay();
+    bcSend({ cmd: 'style', displayMode: displayMode });
+  });
+
+  /* Font controls */
+  var cfgFont = document.getElementById('cfg-font');
+  var cfgFontSizeRange = document.getElementById('cfg-fontsize-range');
+  var cfgFontSizeVal = document.getElementById('cfg-fontsize-val');
+  var cfgTextColor = document.getElementById('cfg-text-color');
+  cfgFont.addEventListener('change', function() {
+    fontFamily = cfgFont.value;
+    applyFontSettings();
+    renderDisplay();
+    bcSend({ cmd: 'style', fontFamily: fontFamily });
+    saveItems();
+  });
+  cfgFontSizeRange.addEventListener('input', function() {
+    fontSize = parseInt(cfgFontSizeRange.value, 10);
+    cfgFontSizeVal.textContent = fontSize;
+    renderDisplay();
+    bcSend({ cmd: 'style', fontSize: fontSize });
+    saveItems();
+  });
+  cfgTextColor.addEventListener('input', function() {
+    textColor = cfgTextColor.value;
+    renderDisplay();
+    bcSend({ cmd: 'style', textColor: textColor });
+    saveItems();
+  });
+
+  /* Result size/color controls */
+  var cfgResultSize = document.getElementById('cfg-result-size');
+  var cfgResultSizeVal = document.getElementById('cfg-result-size-val');
+  var cfgResultColor = document.getElementById('cfg-result-color');
+
+  cfgResultSize.addEventListener('input', function() {
+    resultFontSize = parseInt(cfgResultSize.value, 10);
+    cfgResultSizeVal.textContent = resultFontSize;
+    applyFontSettings();
+    saveItems();
+    bcSend({ cmd: 'style', resultFontSize: resultFontSize });
+  });
+  cfgResultColor.addEventListener('input', function() {
+    resultColor = cfgResultColor.value;
+    applyFontSettings();
+    saveItems();
+    bcSend({ cmd: 'style', resultColor: resultColor });
+  });
+
+  // Spin speed controls
+  var cfgSpinSpeed = document.getElementById('cfg-spin-speed');
+  var cfgSpinSpeedVal = document.getElementById('cfg-spin-speed-val');
+  var cfgBrakeTime = document.getElementById('cfg-brake-time');
+  var cfgBrakeTimeVal = document.getElementById('cfg-brake-time-val');
+
+  cfgSpinSpeed.addEventListener('input', function() {
+    spinSpeed = parseFloat(cfgSpinSpeed.value);
+    cfgSpinSpeedVal.textContent = spinSpeed;
+    saveItems();
+  });
+  cfgBrakeTime.addEventListener('input', function() {
+    brakeTime = parseFloat(cfgBrakeTime.value);
+    cfgBrakeTimeVal.textContent = brakeTime + 's';
+    saveItems();
+  });
+
+  /* Color mode control */
+  var cfgColorMode = document.getElementById('cfg-color-mode');
+  cfgColorMode.addEventListener('change', function() {
+    colorMode = cfgColorMode.value;
+    renderList();
+    renderDisplay();
+    bcSend({ cmd: 'style', colorMode: colorMode });
+  });
+
+  /* ── Sync UI from loaded state ── */
+  if (cfgFont) {
+    var matched = false;
+    for (var oi = 0; oi < cfgFont.options.length; oi++) {
+      if (cfgFont.options[oi].value === fontFamily) { cfgFont.value = fontFamily; matched = true; break; }
+    }
+    /* If loaded font doesn't match any option, fall back to first option */
+    if (!matched) {
+      fontFamily = cfgFont.options[0].value;
+      cfgFont.value = fontFamily;
+    }
+  }
+  if (cfgFontSizeRange) { cfgFontSizeRange.value = fontSizePx(); cfgFontSizeVal.textContent = fontSizePx(); }
+  if (cfgTextColor) cfgTextColor.value = textColor;
+  if (cfgResultSize) { cfgResultSize.value = resultFontSize; cfgResultSizeVal.textContent = resultFontSize; }
+  if (cfgResultColor) cfgResultColor.value = resultColor;
+  if (cfgSpinSpeed) { cfgSpinSpeed.value = spinSpeed; cfgSpinSpeedVal.textContent = spinSpeed; }
+  if (cfgBrakeTime) { cfgBrakeTime.value = brakeTime; cfgBrakeTimeVal.textContent = brakeTime + 's'; }
+
+  /* ── Initial render ── */
+  ctrlEl.classList.toggle('hidden', !showCtrl);
+  applyFontSettings();
+  renderList();
+  renderDisplay();
+
+  /* Request state from any running instance */
+  if (ch) {
+    setTimeout(function() { bcSend({ cmd: 'getState' }); }, 100);
+  }
+
+  /* ── Cleanup on unload ── */
+  window.addEventListener('beforeunload', function() {
+    if (ch) { try { ch.close(); } catch(e) {} ch = null; }
+  });
+})();
+</script>
+</body>
+</html>

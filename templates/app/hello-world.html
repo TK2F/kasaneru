@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hello World — Kasaneru App Template</title>
+<style>
+/* ═══ REQUIRED: transparent background for overlay compositing ═══ */
+html, body {
+  margin: 0; padding: 0;
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif;
+  color: #fff;
+}
+
+/* ═══ Display surface (broadcast) ═══ */
+.display {
+  padding: 16px 20px;
+  background: rgba(8, 8, 16, 0.78);
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  display: inline-block;
+}
+.display-title {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.display-sub {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 4px;
+}
+
+/* ═══ Control panel (dock iframe) ═══ */
+.ctrl-panel {
+  display: none;
+  padding: 8px;
+  background: #1a1a2e;
+  min-height: 100vh;
+  font-size: 11px;
+}
+.ctrl-panel.visible { display: block; }
+.ctrl-row { margin-bottom: 6px; }
+.ctrl-row label { display: block; font-weight: 600; margin-bottom: 2px; color: rgba(255,255,255,0.7); }
+.ctrl-input {
+  width: 100%; box-sizing: border-box; padding: 4px 6px;
+  background: #2a2a3e; border: 1px solid #444; border-radius: 4px;
+  color: #fff; font-size: 11px;
+}
+.ctrl-btn {
+  padding: 6px 12px; border: none; border-radius: 4px;
+  background: #e8002d; color: #fff; font-weight: 600; cursor: pointer;
+  font-size: 11px;
+}
+.ctrl-btn:hover { opacity: 0.85; }
+
+/* ═══ Accent color (set by dock theme sync) ═══ */
+.accent-bar {
+  width: 40px; height: 3px; border-radius: 2px;
+  background: var(--acc, #e8002d);
+  margin-top: 8px;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ DISPLAY SURFACE: visible on stream ═══ -->
+<div class="display" id="display">
+  <div class="display-title" id="title-text">Hello World</div>
+  <div class="display-sub" id="sub-text">Kasaneru App Template</div>
+  <div class="accent-bar"></div>
+</div>
+
+<!-- ═══ CONTROL PANEL: visible in dock (ctrl=1) ═══ -->
+<div class="ctrl-panel" id="ctrl-panel">
+  <div class="ctrl-row">
+    <label>Title</label>
+    <input class="ctrl-input" id="ctrl-title" value="Hello World">
+  </div>
+  <div class="ctrl-row">
+    <label>Subtitle</label>
+    <input class="ctrl-input" id="ctrl-sub" value="Kasaneru App Template">
+  </div>
+  <div class="ctrl-row">
+    <ctrl-btn class="ctrl-btn" id="ctrl-apply">Apply</ctrl-btn>
+  </div>
+</div>
+
+<script>
+(function() {
+  /* ═══ 1. URL PARAMS ═══ */
+  var params = new URLSearchParams(location.search);
+  var isCtrl = params.get('ctrl') === '1' || params.get('dock') === '1';
+  var isNoCtrl = params.get('noctrl') === '1';
+
+  /* Show/hide surfaces */
+  var displayEl = document.getElementById('display');
+  var ctrlPanel = document.getElementById('ctrl-panel');
+  if (isCtrl) {
+    ctrlPanel.classList.add('visible');
+    displayEl.style.display = 'none'; /* Ctrl mode: controls only */
+  }
+  if (isNoCtrl) {
+    /* Broadcast mode: display only, no controls whatsoever */
+    ctrlPanel.style.display = 'none';
+  }
+
+  /* ═══ 2. BROADCASTCHANNEL ═══ */
+  /* Channel name MUST follow: lt_app_{appname} */
+  var bc = null;
+  try {
+    bc = new BroadcastChannel('lt_app_helloworld');
+    bc.onmessage = function(ev) {
+      var d = ev.data;
+      if (!d) return;
+
+      /* config: theme/accent sync from dock */
+      if (d.cmd === 'config') {
+        if (d.accent) document.documentElement.style.setProperty('--acc', d.accent);
+      }
+
+      /* Custom commands */
+      if (d.cmd === 'update') {
+        if (d.title) document.getElementById('title-text').textContent = d.title;
+        if (d.sub) document.getElementById('sub-text').textContent = d.sub;
+      }
+
+      /* State sync: respond to getState with current state */
+      if (d.cmd === 'getState') {
+        try {
+          bc.postMessage({
+            cmd: 'state',
+            title: document.getElementById('title-text').textContent,
+            sub: document.getElementById('sub-text').textContent
+          });
+        } catch(e) {}
+      }
+    };
+  } catch(e) { /* BroadcastChannel not available — app still works standalone */ }
+
+  /* ═══ 3. POSTMESSAGE HANDLER (theme sync from overlay iframe bridge) ═══ */
+  window.addEventListener('message', function(ev) {
+    var d = ev && ev.data;
+    if (!d || d.cmd !== 'lt_overlay_config') return;
+    if (d.accentColor) document.documentElement.style.setProperty('--acc', d.accentColor);
+  });
+
+  /* ═══ 4. CONTROL PANEL LOGIC ═══ */
+  if (isCtrl) {
+    document.getElementById('ctrl-apply').addEventListener('click', function() {
+      var title = document.getElementById('ctrl-title').value;
+      var sub = document.getElementById('ctrl-sub').value;
+
+      /* Broadcast update to all surfaces (display + other ctrl instances) */
+      try {
+        if (bc) bc.postMessage({ cmd: 'update', title: title, sub: sub });
+      } catch(e) {}
+    });
+  }
+
+})();
+</script>
+</body>
+</html>

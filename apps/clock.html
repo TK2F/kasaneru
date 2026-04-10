@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Clock</title>
+<link id="ext-css" rel="stylesheet" href="">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Style: Default (panel) ── */
+.clock-wrap {
+  text-align: center;
+  padding: 14px 28px;
+  border-radius: 16px;
+  position: relative;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+.clock-wrap.style-default {
+  background: rgba(8,8,16,0.78);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+/* ── Style: Minimal (text only, no bg) ── */
+.clock-wrap.style-minimal {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  padding: 8px 16px;
+}
+.clock-wrap.style-minimal .clock-time {
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+}
+.clock-wrap.style-minimal .clock-date {
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+
+/* ── Style: Neon (glow) ── */
+.clock-wrap.style-neon {
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+.clock-wrap.style-neon .clock-time {
+  color: var(--acc, #00ff88);
+  text-shadow: 0 0 8px var(--acc, #00ff88), 0 0 24px var(--acc, #00ff88);
+  font-weight: 900;
+}
+.clock-wrap.style-neon .clock-seconds {
+  color: var(--acc, #00ff88);
+  opacity: 0.6;
+}
+.clock-wrap.style-neon .clock-date {
+  color: rgba(255,255,255,0.4);
+}
+
+/* ── Style: Flip (retro digital) ── */
+.clock-wrap.style-flip {
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  font-family: 'Consolas', 'Courier New', monospace;
+  padding: 18px 32px;
+}
+.clock-wrap.style-flip .clock-time {
+  background: linear-gradient(180deg, #fff 0%, #ccc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+.clock-wrap.style-flip .clock-seconds {
+  -webkit-text-fill-color: rgba(200,200,200,0.5);
+}
+.clock-wrap.style-flip .clock-date {
+  color: rgba(180,190,220,0.5);
+  letter-spacing: 0.1em;
+}
+
+/* ── Shared ── */
+.clock-date {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 2px;
+}
+.clock-time {
+  font-size: 48px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  transition: font-size 0.3s, color 0.3s;
+}
+.clock-seconds {
+  font-size: 24px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+  vertical-align: super;
+  margin-left: 2px;
+}
+
+/* ── Controls ── */
+.ctrl {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.ctrl.hidden { display: none; }
+.ctrl-row { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.ctrl-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; font-size: 10px; font-weight: 600;
+  padding: 5px 10px; border-radius: 6px;
+  cursor: pointer; letter-spacing: 0.04em;
+  font-family: 'Segoe UI', sans-serif;
+}
+.ctrl-btn:hover { background: rgba(255,255,255,0.15); }
+.ctrl-btn.active { background: var(--acc, #e8002d); border-color: transparent; }
+.ctrl-btn.active:hover { filter: brightness(1.15); }
+.ctrl-check {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 9px; color: rgba(255,255,255,0.4);
+  cursor: pointer; font-family: 'Segoe UI', sans-serif;
+}
+.ctrl-check input { width: 12px; height: 12px; cursor: pointer; }
+.ctrl-select {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; font-size: 9px; font-weight: 600;
+  padding: 4px 6px; border-radius: 5px;
+  cursor: pointer; font-family: 'Segoe UI', sans-serif;
+}
+.ctrl-select:focus { outline: none; border-color: var(--acc, #e8002d); }
+
+/* Toggle button to show/hide controls */
+.ctrl-toggle {
+  position: absolute; top: 6px; right: 8px;
+  background: none; border: none;
+  color: rgba(255,255,255,0.2); font-size: 10px;
+  cursor: pointer; padding: 2px;
+}
+.ctrl-toggle:hover { color: rgba(255,255,255,0.5); }
+</style>
+</head>
+<body>
+<div class="clock-wrap style-default" id="wrap">
+  <button class="ctrl-toggle" id="ctrl-toggle" title="Toggle controls">&#9881;</button>
+  <div class="clock-date" id="date"></div>
+  <div class="clock-time" id="time"></div>
+
+  <div class="ctrl hidden" id="ctrl">
+    <div class="ctrl-row">
+      <label class="ctrl-check"><input type="checkbox" id="chk-24h" checked><span>24H</span></label>
+      <label class="ctrl-check"><input type="checkbox" id="chk-date" checked><span>Date</span></label>
+      <label class="ctrl-check"><input type="checkbox" id="chk-seconds" checked><span>Sec</span></label>
+    </div>
+    <div class="ctrl-row">
+      <select class="ctrl-select" id="sel-lang">
+        <option value="ja">日本語</option>
+        <option value="en">English</option>
+      </select>
+      <select class="ctrl-select" id="sel-style">
+        <option value="default">Default</option>
+        <option value="minimal">Minimal</option>
+        <option value="neon">Neon</option>
+        <option value="flip">Flip</option>
+      </select>
+    </div>
+    <div class="ctrl-row" style="margin-top:4px;border-top:1px solid rgba(255,255,255,0.08);padding-top:4px;">
+      <select class="ctrl-select" id="cfg-font" style="width:auto;">
+        <option value="'Consolas','Courier New',monospace">Consolas</option>
+        <option value="'Arial',sans-serif">Arial</option>
+        <option value="'Segoe UI',sans-serif">Segoe UI</option>
+        <option value="system-ui,sans-serif">System</option>
+        <option value="'Georgia',serif">Georgia</option>
+      </select>
+      <input class="ctrl-select" id="cfg-fontsize" type="number" min="16" max="120" value="48" style="width:42px;text-align:center;">
+      <span style="font-size:8px;color:rgba(255,255,255,0.3);">px</span>
+    </div>
+    <div class="ctrl-row">
+      <input type="color" id="cfg-bg-color" value="#080810" style="width:24px;height:20px;border:none;background:none;cursor:pointer;">
+      <input class="ctrl-select" id="cfg-bg-alpha" type="range" min="0" max="100" value="78" style="width:60px;height:14px;">
+      <span style="font-size:8px;color:rgba(255,255,255,0.3);">BG</span>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var wrapEl = document.getElementById('wrap');
+  var timeEl = document.getElementById('time');
+  var dateEl = document.getElementById('date');
+  var ctrlEl = document.getElementById('ctrl');
+  var ctrlToggle = document.getElementById('ctrl-toggle');
+
+  var use24h = true;
+  var showDate = true;
+  var showSeconds = true;
+  var clockStyle = 'default';
+  var lang = 'ja';
+  var showCtrl = false;
+
+  var weekJa = ['\u65E5', '\u6708', '\u706B', '\u6C34', '\u6728', '\u91D1', '\u571F'];
+  var weekEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  function applyClockStyle(s) {
+    clockStyle = s || 'default';
+    wrapEl.className = 'clock-wrap style-' + clockStyle;
+  }
+
+  function render() {
+    var now = new Date();
+    var h = now.getHours();
+    var m = now.getMinutes();
+    var s = now.getSeconds();
+    var ampm = '';
+
+    if (!use24h) {
+      ampm = h >= 12 ? ' PM' : ' AM';
+      h = h % 12 || 12;
+    }
+
+    var timeStr = pad2(h) + ':' + pad2(m);
+    if (showSeconds) {
+      timeStr += '<span class="clock-seconds">' + pad2(s) + '</span>';
+    }
+    timeStr += ampm;
+    timeEl.innerHTML = timeStr;
+
+    if (showDate) {
+      var y = now.getFullYear();
+      var mo = now.getMonth() + 1;
+      var d = now.getDate();
+      var w = now.getDay();
+      if (lang === 'ja') {
+        dateEl.textContent = y + '/' + pad2(mo) + '/' + pad2(d) + ' (' + weekJa[w] + ')';
+      } else {
+        dateEl.textContent = weekEn[w] + ', ' + y + '/' + pad2(mo) + '/' + pad2(d);
+      }
+      dateEl.style.display = '';
+    } else {
+      dateEl.style.display = 'none';
+    }
+  }
+
+  /* ── Helper: broadcast command to sync other instances ── */
+  function bcSend(msg) { if (ch) try { ch.postMessage(msg); } catch(e) {} }
+
+  /* ── Build current config state ── */
+  function getConfigState() {
+    return {
+      use24h: use24h, showDate: showDate, showSeconds: showSeconds,
+      lang: lang, style: clockStyle
+    };
+  }
+
+  /* ── Apply config from BC message ── */
+  function applyConfig(d) {
+    if (typeof d.use24h === 'boolean') { use24h = d.use24h; if (chk24h) chk24h.checked = use24h; }
+    if (typeof d.showDate === 'boolean') { showDate = d.showDate; if (chkDate) chkDate.checked = showDate; }
+    if (typeof d.showSeconds === 'boolean') { showSeconds = d.showSeconds; if (chkSeconds) chkSeconds.checked = showSeconds; }
+    if (d.lang) { lang = d.lang; if (selLang) selLang.value = lang; }
+    if (d.accent) document.documentElement.style.setProperty('--acc', d.accent);
+    if (d.style) { applyClockStyle(d.style); if (selStyle) selStyle.value = d.style; }
+    if (d.fontFamily) timeEl.style.fontFamily = d.fontFamily;
+    if (typeof d.fontSize === 'number') timeEl.style.fontSize = d.fontSize + 'px';
+    if (d.fontColor) timeEl.style.color = d.fontColor;
+    if (d.bgColor) wrapEl.style.background = d.bgColor;
+    if (d.bgColor === 'transparent' || d.bgColor === 'none') {
+      wrapEl.style.background = 'transparent';
+      wrapEl.style.border = 'none';
+      wrapEl.style.boxShadow = 'none';
+    }
+    if (d.cssUrl) document.getElementById('ext-css').href = d.cssUrl;
+    render();
+  }
+
+  /* ── BroadcastChannel ── */
+  var ch;
+  try { ch = new BroadcastChannel('lt_app_clock'); } catch(e) {}
+  if (ch) {
+    ch.onmessage = function(e) {
+      var d = e.data;
+      if (!d) return;
+      if (d.cmd === 'config') {
+        applyConfig(d);
+      }
+      /* State sync: respond to state request from new instances */
+      if (d.cmd === 'getState') {
+        bcSend({ cmd: 'state', use24h: use24h, showDate: showDate,
+                 showSeconds: showSeconds, lang: lang, style: clockStyle });
+      }
+      /* State sync: receive state from running instance */
+      if (d.cmd === 'state') {
+        applyConfig(d);
+      }
+      /* Style config from other instance */
+      if (d.cmd === 'style') {
+        applyVisualStyle(d);
+      }
+    };
+    /* Request state from any running instance on startup */
+    setTimeout(function() { bcSend({ cmd: 'getState' }); }, 100);
+  }
+
+  /* ── Theme sync bridge (postMessage from overlay.html) ── */
+  window.addEventListener('message', function(ev) {
+    var d = ev && ev.data;
+    if (!d || d.cmd !== 'lt_overlay_config') return;
+    if (d.accentColor) document.documentElement.style.setProperty('--acc', d.accentColor);
+    if (d.accent) document.documentElement.style.setProperty('--acc', d.accent);
+  });
+
+  /* ── URL params ── */
+  var params = new URLSearchParams(location.search);
+  if (params.get('24h') === '0') use24h = false;
+  if (params.get('date') === '0') showDate = false;
+  if (params.get('seconds') === '0') showSeconds = false;
+  if (params.get('lang')) lang = params.get('lang');
+  if (params.get('style')) applyClockStyle(params.get('style'));
+  if (params.get('fontsize')) timeEl.style.fontSize = params.get('fontsize') + 'px';
+  if (params.get('fontcolor')) timeEl.style.color = params.get('fontcolor');
+  if (params.get('bg')) {
+    var bg = params.get('bg');
+    if (bg === 'none' || bg === 'transparent') {
+      wrapEl.style.background = 'transparent';
+      wrapEl.style.border = 'none';
+      wrapEl.style.boxShadow = 'none';
+    } else {
+      wrapEl.style.background = bg;
+    }
+  }
+  if (params.get('css')) document.getElementById('ext-css').href = params.get('css');
+
+  /* Surface mode: ctrl=1 → dock (show all), noctrl=1 → display only (no controls, no toggle) */
+  if (params.get('ctrl') === '1') { showCtrl = true; }
+  if (params.get('noctrl') === '1') {
+    showCtrl = false;
+    ctrlEl.classList.add('hidden');
+    ctrlToggle.style.display = 'none';
+  }
+
+  /* ── Controls wiring ── */
+  var chk24h = document.getElementById('chk-24h');
+  var chkDate = document.getElementById('chk-date');
+  var chkSeconds = document.getElementById('chk-seconds');
+  var selLang = document.getElementById('sel-lang');
+  var selStyle = document.getElementById('sel-style');
+  var cfgFont = document.getElementById('cfg-font');
+  var cfgFontSize = document.getElementById('cfg-fontsize');
+  var cfgBgColor = document.getElementById('cfg-bg-color');
+  var cfgBgAlpha = document.getElementById('cfg-bg-alpha');
+
+  function broadcastConfig() {
+    bcSend({ cmd: 'config', use24h: use24h, showDate: showDate,
+             showSeconds: showSeconds, lang: lang, style: clockStyle });
+  }
+
+  chk24h.checked = use24h;
+  chk24h.addEventListener('change', function() { use24h = chk24h.checked; render(); broadcastConfig(); });
+
+  chkDate.checked = showDate;
+  chkDate.addEventListener('change', function() { showDate = chkDate.checked; render(); broadcastConfig(); });
+
+  chkSeconds.checked = showSeconds;
+  chkSeconds.addEventListener('change', function() { showSeconds = chkSeconds.checked; render(); broadcastConfig(); });
+
+  selLang.value = lang;
+  selLang.addEventListener('change', function() { lang = selLang.value; render(); broadcastConfig(); });
+
+  selStyle.value = clockStyle;
+  selStyle.addEventListener('change', function() { applyClockStyle(selStyle.value); render(); broadcastConfig(); });
+
+  /* ── Visual style controls (font, bg) ── */
+  function applyVisualStyle(cfg) {
+    if (cfg.fontFamily) { timeEl.style.fontFamily = cfg.fontFamily; if (cfgFont) cfgFont.value = cfg.fontFamily; }
+    if (cfg.fontSize) { timeEl.style.fontSize = cfg.fontSize + 'px'; if (cfgFontSize) cfgFontSize.value = cfg.fontSize; }
+    if (cfg.bgColor || cfg.bgAlpha != null) {
+      var hex = cfg.bgColor || cfgBgColor.value || '#080810';
+      var a = cfg.bgAlpha != null ? cfg.bgAlpha : parseInt(cfgBgAlpha.value, 10);
+      var r = parseInt(hex.substr(1,2), 16) || 8;
+      var g2 = parseInt(hex.substr(3,2), 16) || 8;
+      var b = parseInt(hex.substr(5,2), 16) || 16;
+      wrapEl.style.background = 'rgba(' + r + ',' + g2 + ',' + b + ',' + (a / 100) + ')';
+      if (cfgBgColor) cfgBgColor.value = hex;
+      if (cfgBgAlpha) cfgBgAlpha.value = a;
+    }
+  }
+  function sendVisualStyle() {
+    bcSend({ cmd: 'style', fontFamily: cfgFont.value, fontSize: parseInt(cfgFontSize.value, 10) || 48,
+             bgColor: cfgBgColor.value, bgAlpha: parseInt(cfgBgAlpha.value, 10) });
+  }
+  cfgFont.addEventListener('change', function() { applyVisualStyle({ fontFamily: cfgFont.value }); sendVisualStyle(); });
+  cfgFontSize.addEventListener('change', function() { applyVisualStyle({ fontSize: parseInt(cfgFontSize.value, 10) }); sendVisualStyle(); });
+  cfgBgColor.addEventListener('input', function() { applyVisualStyle({ bgColor: cfgBgColor.value }); sendVisualStyle(); });
+  cfgBgAlpha.addEventListener('input', function() { applyVisualStyle({ bgAlpha: parseInt(cfgBgAlpha.value, 10) }); sendVisualStyle(); });
+
+  ctrlToggle.addEventListener('click', function() {
+    showCtrl = !showCtrl;
+    ctrlEl.classList.toggle('hidden', !showCtrl);
+  });
+
+  /* Apply initial ctrl visibility */
+  ctrlEl.classList.toggle('hidden', !showCtrl);
+  render();
+  var clockInterval = setInterval(render, 1000);
+
+  window.addEventListener('beforeunload', function() {
+    clearInterval(clockInterval);
+    if (ch) { try { ch.close(); } catch(e) {} ch = null; }
+  });
+})();
+</script>
+</body>
+</html>

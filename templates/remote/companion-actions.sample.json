@@ -1,0 +1,34 @@
+{
+  "schema": "lt_overlay_remote_actions_v1",
+  "description": "Sample action payloads for Stream Deck / Companion -> Kasaneru dock websocket",
+  "actions": [
+    { "name": "Chapter Live", "payload": { "cmd": "control", "action": "chapter_live" } },
+    { "name": "Chapter Hide", "payload": { "cmd": "control", "action": "chapter_hide" } },
+    { "name": "Chapter Prev", "payload": { "cmd": "control", "action": "chapter_prev" } },
+    { "name": "Chapter Next", "payload": { "cmd": "control", "action": "chapter_next" } },
+
+    { "name": "TitleCard Show", "payload": { "cmd": "control", "action": "titlecard_show" } },
+    { "name": "TitleCard Hide", "payload": { "cmd": "control", "action": "titlecard_hide" } },
+    { "name": "TitleCard Prev", "payload": { "cmd": "control", "action": "titlecard_prev" } },
+    { "name": "TitleCard Next", "payload": { "cmd": "control", "action": "titlecard_next" } },
+
+    { "name": "Image Show", "payload": { "cmd": "control", "action": "image_show" } },
+    { "name": "Image Hide", "payload": { "cmd": "control", "action": "image_hide" } },
+    { "name": "Image Prev", "payload": { "cmd": "control", "action": "image_prev" } },
+    { "name": "Image Next", "payload": { "cmd": "control", "action": "image_next" } },
+
+    { "name": "Apps Show All", "payload": { "cmd": "control", "action": "app_show_all" } },
+    { "name": "Apps Hide All", "payload": { "cmd": "control", "action": "app_hide_all" } },
+
+    { "name": "Master ON", "payload": { "cmd": "control", "action": "master_on" } },
+    { "name": "Master OFF", "payload": { "cmd": "control", "action": "master_off" } },
+
+    { "name": "Tab Chapters", "payload": { "cmd": "control", "action": "set_tab", "tab": "chapters" } },
+    { "name": "Tab TitleCard", "payload": { "cmd": "control", "action": "set_tab", "tab": "titlecard" } },
+    { "name": "Tab Images", "payload": { "cmd": "control", "action": "set_tab", "tab": "images" } },
+    { "name": "Tab Apps", "payload": { "cmd": "control", "action": "set_tab", "tab": "apps" } },
+    { "name": "Tab Settings", "payload": { "cmd": "control", "action": "set_tab", "tab": "settings" } },
+
+    { "name": "Sync", "payload": { "cmd": "control", "action": "sync" } }
+  ]
+}

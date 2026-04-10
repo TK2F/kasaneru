@@ -1,0 +1,42 @@
+# OS
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+
+# IDE
+.cursor/
+.claude/
+.codex/
+.vscode/
+
+# Logs / temp
+*.log
+*.tmp
+*.bak
+
+# Node / Python (if used locally)
+node_modules/
+dist/
+build/
+.venv/
+__pycache__/
+
+# Archives
+*.zip
+*.7z
+
+# Images (user assets — keep manifest + folder stub)
+images/*
+!images/.gitkeep
+!images/manifest.json
+!images/manifest.js
+
+# Music (user assets)
+music/*
+!music/.gitkeep
+
+# Private
+private/
+.env
+*.key
+credentials.*

@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>TRPG Dice</title>
+<style>
+/* ── Reset ── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  color: #fff;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.has-ctrl {
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px;
+}
+
+/* ── CSS Variables ── */
+:root {
+  --acc: #ffffff;
+  --bg-panel: rgba(8,8,16,0.88);
+  --bg-ctrl: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.12);
+  --text-dim: rgba(255,255,255,0.4);
+  --text-mid: rgba(255,255,255,0.65);
+  --crit-color: #ffd700;
+  --fumble-color: #ff3b30;
+}
+
+/* ── Display Area (overlay visible) ── */
+.dice-stage {
+  text-align: center;
+  position: relative;
+  min-width: 220px;
+}
+.dice-result-wrap {
+  padding: 16px 28px;
+  background: var(--bg-panel);
+  border-radius: 14px;
+  border-left: var(--accent-bar, 4px solid var(--acc));
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  position: relative;
+  overflow: hidden;
+}
+.dice-formula {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.dice-total {
+  font-size: 64px; font-weight: 900;
+  line-height: 1; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s, text-shadow 0.3s;
+  min-height: 68px;
+  display: flex; align-items: center; justify-content: center;
+}
+.dice-total.rolling {
+  animation: numCycle 0.08s steps(1) infinite;
+}
+.dice-total.crit {
+  color: var(--crit-color);
+  text-shadow: 0 0 20px var(--crit-color), 0 0 40px rgba(255,215,0,0.4);
+}
+.dice-total.fumble {
+  color: var(--fumble-color);
+  text-shadow: 0 0 12px var(--fumble-color);
+}
+.dice-detail {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-mid);
+  margin-top: 6px; min-height: 18px;
+  transition: opacity 0.3s;
+}
+.dice-user {
+  font-size: 9px; font-weight: 600;
+  color: var(--text-dim);
+  margin-top: 4px; min-height: 12px;
+  letter-spacing: 0.06em;
+}
+
+/* Shake animation */
+.dice-result-wrap.shake {
+  animation: diceShake 0.5s ease-out;
+}
+@keyframes diceShake {
+  0%   { transform: translate(0,0) rotate(0deg); }
+  15%  { transform: translate(-4px,2px) rotate(-2deg); }
+  30%  { transform: translate(3px,-3px) rotate(1.5deg); }
+  45%  { transform: translate(-2px,1px) rotate(-1deg); }
+  60%  { transform: translate(2px,-1px) rotate(0.8deg); }
+  80%  { transform: translate(-1px,0) rotate(-0.3deg); }
+  100% { transform: translate(0,0) rotate(0deg); }
+}
+
+/* Crit burst particles */
+.crit-burst {
+  position: absolute; top: 50%; left: 50%;
+  width: 0; height: 0; pointer-events: none;
+}
+.crit-particle {
+  position: absolute;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--crit-color);
+  animation: particleBurst 0.8s ease-out forwards;
+}
+@keyframes particleBurst {
+  0%   { opacity: 1; transform: translate(0,0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) scale(0.2); }
+}
+
+/* Hidden state for overlay before first roll */
+.dice-stage.idle .dice-result-wrap { opacity: 0.6; }
+.dice-stage.hidden { display: none; }
+
+/* ── Control Panel ── */
+.ctrl-panel {
+  display: none;
+  width: 100%;
+  max-width: 380px;
+  margin-top: 10px;
+  background: var(--bg-panel);
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+}
+body.has-ctrl .ctrl-panel { display: block; }
+
+.ctrl-section {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.ctrl-section:last-child { margin-bottom: 0; border-bottom: none; }
+.ctrl-title {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.ctrl-row {
+  display: flex; gap: 4px; align-items: center;
+  flex-wrap: wrap; margin-bottom: 4px;
+}
+.ctrl-row:last-child { margin-bottom: 0; }
+.ctrl-btn {
+  background: var(--bg-ctrl);
+  border: 1px solid var(--border);
+  color: #fff; font-size: 11px; font-weight: 600;
+  padding: 6px 10px; border-radius: 6px;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ctrl-btn:hover { background: rgba(255,255,255,0.12); }
+.ctrl-btn.active, .ctrl-btn.accent {
+  background: var(--acc); border-color: transparent;
+  color: var(--acc-text, #fff);
+}
+.ctrl-btn.active:hover, .ctrl-btn.accent:hover { filter: brightness(1.15); }
+.ctrl-btn.sm { font-size: 10px; padding: 4px 7px; }
+.ctrl-btn.lg { font-size: 14px; padding: 8px 20px; font-weight: 800; }
+
+.ctrl-input {
+  background: var(--bg-ctrl);
+  border: 1px solid var(--border);
+  color: #fff; font-size: 12px;
+  padding: 5px 8px; border-radius: 5px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  width: 100%;
+}
+.ctrl-input:focus { outline: none; border-color: var(--acc); }
+.ctrl-input.narrow { width: 60px; text-align: center; }
+.ctrl-select {
+  background: var(--bg-ctrl);
+  border: 1px solid var(--border);
+  color: #fff; font-size: 11px;
+  padding: 5px 6px; border-radius: 5px;
+  font-family: inherit; cursor: pointer;
+}
+.ctrl-select:focus { outline: none; border-color: var(--acc); }
+.ctrl-label {
+  font-size: 10px; color: var(--text-mid);
+  min-width: 50px;
+}
+.ctrl-range {
+  flex: 1; height: 4px;
+  accent-color: var(--acc);
+}
+.ctrl-check {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; color: var(--text-mid);
+  cursor: pointer;
+}
+.ctrl-check input { width: 14px; height: 14px; accent-color: var(--acc); cursor: pointer; }
+
+/* ── Status / Log ── */
+.status-bar {
+  display: none;
+  font-size: 9px; color: var(--text-dim);
+  padding: 4px 8px;
+  text-align: center;
+}
+body.has-ctrl .status-bar { display: block; }
+.status-bar .err { color: #ff3b30; }
+.status-bar .ok  { color: #34c759; }
+.status-bar .warn { color: #ff9500; }
+
+.history-list {
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 10px;
+  color: var(--text-mid);
+}
+.history-item {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.history-item .hi-formula { color: var(--text-dim); font-size: 9px; }
+.history-item .hi-result { font-weight: 700; }
+.history-item .hi-result.crit { color: var(--crit-color); }
+.history-item .hi-result.fumble { color: var(--fumble-color); }
+.history-item .hi-time { color: rgba(255,255,255,0.2); font-size: 8px; }
+
+/* ── Preset tags ── */
+.preset-tag {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px 8px;
+  font-size: 10px; cursor: pointer;
+  transition: background 0.15s;
+}
+.preset-tag:hover { background: rgba(255,255,255,0.14); }
+.preset-tag .pt-del {
+  font-size: 8px; opacity: 0.4;
+  cursor: pointer; margin-left: 2px;
+}
+.preset-tag .pt-del:hover { opacity: 1; color: #ff3b30; }
+
+/* ── Toggle ── */
+.ctrl-toggle {
+  position: absolute; top: 6px; right: 8px;
+  background: none; border: none;
+  color: rgba(255,255,255,0.2); font-size: 10px;
+  cursor: pointer; padding: 2px; z-index: 10;
+}
+.ctrl-toggle:hover { color: rgba(255,255,255,0.5); }
+
+/* ── Collapsible sections ── */
+.collapse-head {
+  cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 4px;
+}
+.collapse-head::before {
+  content: '\25B6'; font-size: 7px;
+  transition: transform 0.2s;
+  color: var(--text-dim);
+}
+.collapse-head.open::before { transform: rotate(90deg); }
+.collapse-body { display: none; margin-top: 6px; }
+.collapse-body.open { display: block; }
+
+/* ── Janken ── */
+.janken-btn {
+  background: var(--bg-ctrl);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+}
+.janken-btn img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.janken-btn span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-mid);
+}
+.janken-btn:hover {
+  border-color: var(--acc);
+  transform: scale(1.05);
+}
+.janken-btn.selected {
+  border-color: var(--acc);
+  box-shadow: 0 0 12px rgba(232, 0, 45, 0.3);
+}
+
+/* Janken display on overlay */
+.janken-result {
+  display: none;
+  text-align: center;
+  padding: 16px 28px;
+  background: var(--bg-panel);
+  border-radius: 14px;
+  border-left: var(--accent-bar, 4px solid var(--acc));
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+.janken-result.visible { display: block; }
+.janken-result img {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  animation: jankenPop 0.4s cubic-bezier(.16,1,.3,1);
+}
+.janken-result-label {
+  font-size: 36px;
+  font-weight: 900;
+  margin-top: 8px;
+  color: #fff;
+}
+.janken-result.shake {
+  animation: diceShake 0.5s ease-out;
+}
+@keyframes jankenPop {
+  0% { transform: scale(0.3) rotate(-15deg); opacity: 0; }
+  60% { transform: scale(1.1) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* ── Mode Tabs ── */
+.mode-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 2px;
+}
+.mode-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.mode-tab:hover { color: var(--text-mid); }
+.mode-tab.active {
+  background: var(--acc);
+  color: var(--acc-text, #fff);
+}
+</style>
+</head>
+<body>
+
+<!-- ── Display Area ── -->
+<div class="dice-stage idle" id="stage">
+  <div class="dice-result-wrap" id="resultWrap">
+    <button class="ctrl-toggle" id="ctrlToggle" title="Toggle controls">&#9881;</button>
+    <div class="dice-formula" id="formula">READY</div>
+    <div class="dice-total" id="total">--</div>
+    <div class="dice-detail" id="detail"></div>
+    <div class="dice-user" id="userLabel"></div>
+    <div class="crit-burst" id="critBurst"></div>
+  </div>
+</div>
+
+<!-- Janken Display -->
+<div class="janken-result" id="jankenResult">
+  <img id="jankenImg" src="" alt="">
+  <div class="janken-result-label" id="jankenLabel"></div>
+</div>
+
+<!-- ── Control Panel ── -->
+<div class="ctrl-panel" id="ctrlPanel">
+
+  <!-- Mode Tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tabDice" data-mode="dice"><span id="tabDiceLbl">ダイス</span></button>
+    <button class="mode-tab" id="tabJanken" data-mode="janken"><span id="tabJankenLbl">じゃんけん</span></button>
+  </div>
+
+  <div class="mode-content" id="modeDice">
+  <!-- Quick Dice -->
+  <div class="ctrl-section">
+    <div class="ctrl-title">QUICK ROLL</div>
+    <div class="ctrl-row" id="quickDice">
+      <button class="ctrl-btn" data-dice="1d4">d4</button>
+      <button class="ctrl-btn" data-dice="1d6">d6</button>
+      <button class="ctrl-btn" data-dice="1d8">d8</button>
+      <button class="ctrl-btn" data-dice="1d10">d10</button>
+      <button class="ctrl-btn" data-dice="1d12">d12</button>
+      <button class="ctrl-btn" data-dice="1d20">d20</button>
+      <button class="ctrl-btn" data-dice="1d100">d100</button>
+    </div>
+    <div class="ctrl-row" id="quickMulti">
+      <button class="ctrl-btn sm" data-dice="2d6">2d6</button>
+      <button class="ctrl-btn sm" data-dice="3d6">3d6</button>
+      <button class="ctrl-btn sm" data-dice="2d10">2d10</button>
+      <button class="ctrl-btn sm" data-dice="4d6kh3">4d6kh3</button>
+      <button class="ctrl-btn sm" data-dice="2d20kh1">adv</button>
+      <button class="ctrl-btn sm" data-dice="2d20kl1">dis</button>
+    </div>
+  </div>
+
+  <!-- Custom Formula -->
+  <div class="ctrl-section">
+    <div class="ctrl-title">FORMULA</div>
+    <div class="ctrl-row">
+      <input class="ctrl-input" id="formulaInput" placeholder="例: 2d6+3, 4d6kh3, 1d20+5" title="例: 1d20, 2d6+3, 4d6kh3, 1d6!" value="2d6">
+      <button class="ctrl-btn accent lg" id="btnRoll">ROLL</button>
+    </div>
+    <div class="ctrl-row" id="presetRow" style="flex-wrap:wrap;gap:4px;margin-top:4px;"></div>
+    <div class="ctrl-row">
+      <button class="ctrl-btn sm" id="btnSavePreset">+ プリセット保存</button>
+      <button class="ctrl-btn sm" id="btnLang" style="margin-left:auto">JA</button>
+    </div>
+    <div class="ctrl-row" style="flex-wrap:wrap;">
+      <span style="font-size:9px;color:var(--text-dim);line-height:1.5" id="helpText">
+        例: 1d20, 2d6+3, 4d6kh3 (上位3個), 2d20kl1 (下位1個), 1d6! (爆発ダイス), d100
+      </span>
+    </div>
+  </div>
+
+  <!-- Critical / Fumble Settings -->
+  <div class="ctrl-section">
+    <div class="collapse-head" id="critHead">
+      <span class="ctrl-title" style="margin:0" id="critTitle">CRITICAL / FUMBLE</span>
+    </div>
+    <div class="collapse-body" id="critBody">
+      <div class="ctrl-row">
+        <label class="ctrl-check"><input type="checkbox" id="chkCrit" checked><span id="lblCritOn">クリティカル判定</span></label>
+      </div>
+      <div class="ctrl-row">
+        <label class="ctrl-check"><input type="checkbox" id="chkFumble" checked><span id="lblFumbleOn">ファンブル判定</span></label>
+      </div>
+      <div style="font-size:8px;color:var(--text-dim);margin-top:2px" id="critNote">
+        クリティカル = 全ダイスが最大値。ファンブル = 全ダイスが1。
+      </div>
+    </div>
+  </div>
+  </div><!-- /modeDice -->
+
+  <div class="mode-content" id="modeJanken" style="display:none">
+    <div class="ctrl-section">
+      <div class="ctrl-row" style="justify-content:center;gap:8px;">
+        <button class="janken-btn" id="btnRock" title="Rock">
+          <img src="images/rock.png" alt="Rock" width="64" height="64">
+          <span id="lblRock">グー</span>
+        </button>
+        <button class="janken-btn" id="btnPaper" title="Paper">
+          <img src="images/paper.png" alt="Paper" width="64" height="64">
+          <span id="lblPaper">パー</span>
+        </button>
+        <button class="janken-btn" id="btnScissors" title="Scissors">
+          <img src="images/scissors.png" alt="Scissors" width="64" height="64">
+          <span id="lblScissors">チョキ</span>
+        </button>
+      </div>
+      <div class="ctrl-row" style="justify-content:center;margin-top:8px;">
+        <button class="ctrl-btn accent lg" id="btnJankenRandom">
+          <span id="lblJankenRandom">ランダム</span>
+        </button>
+      </div>
+      <div class="ctrl-row" style="margin-top:6px;">
+        <span class="ctrl-label" id="lblJankenSpeed">演出速度</span>
+        <input type="range" class="ctrl-range" id="jankenDuration" min="300" max="2000" step="100" value="800">
+        <span id="jankenDurationVal" style="font-size:10px;color:var(--text-dim);min-width:32px">0.8s</span>
+      </div>
+    </div>
+  </div><!-- /modeJanken -->
+
+  <!-- Volume Mixer -->
+  <div class="ctrl-section">
+    <div class="collapse-head" id="volHead">
+      <span class="ctrl-title" style="margin:0">VOLUME MIXER</span>
+    </div>
+    <div class="collapse-body" id="volBody">
+      <div class="ctrl-row">
+        <span class="ctrl-label">Dice SFX</span>
+        <input type="range" class="ctrl-range" id="volDice" min="0" max="1" step="0.05" value="0.3">
+        <span id="volDiceVal" style="font-size:10px;color:var(--text-dim);min-width:28px">30%</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">UI SFX</span>
+        <input type="range" class="ctrl-range" id="volUi" min="0" max="1" step="0.05" value="0.15">
+        <span id="volUiVal" style="font-size:10px;color:var(--text-dim);min-width:28px">15%</span>
+      </div>
+      <div class="ctrl-row">
+        <label class="ctrl-check"><input type="checkbox" id="chkMute"><span>Mute All</span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appearance -->
+  <div class="ctrl-section">
+    <div class="collapse-head" id="appearHead">
+      <span class="ctrl-title" style="margin:0" id="appearTitle">APPEARANCE</span>
+    </div>
+    <div class="collapse-body" id="appearBody">
+      <div class="ctrl-row">
+        <span class="ctrl-label" id="lblAccBar">Bar</span>
+        <select class="ctrl-select" id="cfgAccentBar" style="width:80px;">
+          <option value="accent">Accent</option>
+          <option value="custom">Custom</option>
+          <option value="none">None</option>
+        </select>
+        <input type="color" id="cfgBarColor" value="#e8002d" style="width:24px;height:22px;border:1px solid rgba(255,255,255,0.15);background:none;cursor:pointer;border-radius:3px;padding:0;">
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="ctrl-section">
+    <div class="collapse-head open" id="histHead">
+      <span class="ctrl-title" style="margin:0">HISTORY</span>
+    </div>
+    <div class="collapse-body open" id="histBody">
+      <div class="history-list" id="historyList"></div>
+      <div class="ctrl-row" style="margin-top:4px">
+        <button class="ctrl-btn sm" id="btnClearHist">Clear</button>
+        <span style="font-size:9px;color:var(--text-dim)" id="histCount">0 rolls</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help -->
+  <div class="ctrl-section" style="text-align:center;padding:6px 0;">
+    <button class="ctrl-btn" id="btnHelp" style="width:100%;font-size:11px;">? Help / 使い方</button>
+  </div>
+
+</div>
+
+<!-- ── Help Modal ── -->
+<div id="helpModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.7);overflow-y:auto;padding:16px;">
+  <div style="max-width:520px;margin:0 auto;background:rgba(12,14,24,0.96);border:1px solid rgba(255,255,255,0.15);border-radius:14px;padding:20px 18px;color:#eee;font-size:12px;line-height:1.7;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-size:15px;font-weight:800;" id="helpTitle">TRPG Dice — 使い方</span>
+      <button id="btnCloseHelp" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">&times;</button>
+    </div>
+    <div id="helpContentJa" style="display:none;">
+      <p style="margin-bottom:10px;color:rgba(255,255,255,0.7);">TRPGで一般的に使われる<b>ダイスノーテーション（dice notation）</b>を入力して、さまざまなダイスを振れます。</p>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px;">
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;white-space:nowrap;">2d6</td><td style="padding:4px 6px;">6面ダイスを2個振って合計</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;">1d20+5</td><td style="padding:4px 6px;">20面ダイス1個 + 修正値5</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;">4d6kh3</td><td style="padding:4px 6px;">6面を4個振って<b>高い順に3個</b>を採用（能力値生成の定番！）</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;">2d20kh1</td><td style="padding:4px 6px;">20面を2個振って高い方を採用（アドバンテージ）</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;">2d20kl1</td><td style="padding:4px 6px;">20面を2個振って低い方を採用（ディスアドバンテージ）</td></tr>
+        <tr><td style="padding:4px 6px;color:var(--acc);font-weight:700;">3d6+2d8+4</td><td style="padding:4px 6px;">複数の種類を組み合わせてもOK</td></tr>
+      </table>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:10px;"><b>kh</b> = keep highest（高い方を残す）、<b>kl</b> = keep lowest（低い方を残す）。数字は残す個数です。</p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:10px;">プリセットボタンで定番ダイスをワンタップ。入力欄に自由に式を書いて ROLL！</p>
+      <p style="margin-bottom:8px;"><b>じゃんけんモード</b></p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);">タブを切り替えてグー・チョキ・パーを選ぶか、ランダムで出せます。配信で「次の対戦カードをじゃんけんで決める」なんて使い方も楽しいですよ！</p>
+    </div>
+    <div id="helpContentEn" style="display:none;">
+      <p style="margin-bottom:10px;color:rgba(255,255,255,0.7);">Type <b>dice notation</b> commonly used in tabletop RPGs to roll all kinds of dice.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px;">
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;white-space:nowrap;">2d6</td><td style="padding:4px 6px;">Roll two 6-sided dice and sum them</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;">1d20+5</td><td style="padding:4px 6px;">Roll a d20 and add 5</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;">4d6kh3</td><td style="padding:4px 6px;">Roll 4d6, <b>keep highest 3</b> (classic stat generation!)</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;">2d20kh1</td><td style="padding:4px 6px;">Roll 2d20, keep the higher one (advantage)</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px 6px;color:var(--acc);font-weight:700;">2d20kl1</td><td style="padding:4px 6px;">Roll 2d20, keep the lower one (disadvantage)</td></tr>
+        <tr><td style="padding:4px 6px;color:var(--acc);font-weight:700;">3d6+2d8+4</td><td style="padding:4px 6px;">Mix and match any dice types</td></tr>
+      </table>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:10px;"><b>kh</b> = keep highest, <b>kl</b> = keep lowest. The number after is how many dice to keep.</p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:10px;">Use preset buttons for common rolls, or type any formula and hit ROLL!</p>
+      <p style="margin-bottom:8px;"><b>Janken Mode</b></p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.55);">Switch tabs to play Rock-Paper-Scissors. Pick a hand or go random — great for deciding matchups on stream!</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Status Bar ── -->
+<div class="status-bar" id="statusBar"></div>
+
+<script>
+(function() {
+'use strict';
+
+/* ======================================================================
+   CONFIG & STATE
+   ====================================================================== */
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+
+const state = {
+  history: [],
+  presets: [],
+  rolling: false,
+  lang: 'ja',
+  critEnabled: true,
+  fumbleEnabled: true,
+  volume: { dice: 0.3, ui: 0.15, muted: false },
+  mode: 'dice',
+  jankenDuration: 800,
+  accentBar: 'accent',
+  barColor: '#e8002d'
+};
+
+/* ======================================================================
+   I18N
+   ====================================================================== */
+const I18N = {
+  ja: {
+    roll: 'ロール', formula: '数式', presets: 'プリセット', history: '履歴',
+    clear: 'クリア', clearAll: '全クリア', savePreset: '+ プリセット保存',
+    volume: '音量ミキサー', diceSfx: 'ダイスSFX', uiSfx: 'UI SFX', muteAll: '全ミュート',
+    crit: 'クリティカル', fumble: 'ファンブル',
+    dice: 'ダイス', jankenSpeed: '演出速度', appearance: '外観', accentBarLabel: 'バー',
+    janken: 'じゃんけん', rock: 'グー', paper: 'パー', scissors: 'チョキ',
+    jankenRandom: 'ランダム', jankenResult: 'じゃんけん結果',
+    critFumble: 'クリティカル / ファンブル', critOn: 'クリティカル判定',
+    fumbleOn: 'ファンブル判定',
+    helpTitle: 'ダイス記法ガイド',
+    helpExamples: '例: 1d20, 2d6+3, 4d6kh3 (上位3個), 2d20kl1 (下位1個), 1d6! (爆発ダイス), d100',
+    lang: '言語',
+    noHistory: '履歴なし',
+    settings: '設定',
+    critNote: 'クリティカル = 全ダイスが最大値。ファンブル = 全ダイスが1。',
+    quickRoll: 'クイックロール',
+    formulaPlaceholder: '例: 2d6+3, 4d6kh3, 1d20+5'
+  },
+  en: {
+    roll: 'Roll', formula: 'Formula', presets: 'Presets', history: 'History',
+    clear: 'Clear', clearAll: 'Clear All', savePreset: '+ Save Preset',
+    volume: 'Volume Mixer', diceSfx: 'Dice SFX', uiSfx: 'UI SFX', muteAll: 'Mute All',
+    crit: 'CRITICAL', fumble: 'FUMBLE',
+    dice: 'Dice', jankenSpeed: 'Animation speed', appearance: 'Appearance', accentBarLabel: 'Bar',
+    janken: 'Janken', rock: 'Rock', paper: 'Paper', scissors: 'Scissors',
+    jankenRandom: 'Random', jankenResult: 'Janken Result',
+    critFumble: 'Critical / Fumble', critOn: 'Critical detection',
+    fumbleOn: 'Fumble detection',
+    helpTitle: 'Dice Notation Guide',
+    helpExamples: 'Ex: 1d20, 2d6+3, 4d6kh3 (keep highest 3), 2d20kl1 (keep lowest 1), 1d6! (exploding), d100',
+    lang: 'Lang',
+    noHistory: 'No history',
+    settings: 'Settings',
+    critNote: 'Critical = all dice show max value. Fumble = all dice show 1.',
+    quickRoll: 'QUICK ROLL',
+    formulaPlaceholder: 'Ex: 2d6+3, 4d6kh3, 1d20+5'
+  }
+};
+
+function t(k) { return (I18N[state.lang] || I18N.ja)[k] || k; }
+
+function applyI18n() {
+  // Quick Roll title
+  const titles = document.querySelectorAll('.ctrl-title');
+  if (titles[0]) titles[0].textContent = t('quickRoll');
+  // Formula title
+  if (titles[1]) titles[1].textContent = t('formula');
+
+  // Formula input placeholder
+  const fi = $('formulaInput');
+  if (fi) fi.placeholder = t('formulaPlaceholder');
+
+  // Roll button
+  const btnRoll = $('btnRoll');
+  if (btnRoll) btnRoll.textContent = t('roll').toUpperCase();
+
+  // Save preset
+  const btnSave = $('btnSavePreset');
+  if (btnSave) btnSave.textContent = t('savePreset');
+
+  // Help text
+  const help = $('helpText');
+  if (help) help.textContent = t('helpExamples');
+
+  // Crit/Fumble
+  const critTitle = $('critTitle');
+  if (critTitle) critTitle.textContent = t('critFumble').toUpperCase();
+  const lblCrit = $('lblCritOn');
+  if (lblCrit) lblCrit.textContent = t('critOn');
+  const lblFumble = $('lblFumbleOn');
+  if (lblFumble) lblFumble.textContent = t('fumbleOn');
+  const critNote = $('critNote');
+  if (critNote) critNote.textContent = t('critNote');
+
+  // Volume mixer
+  const volHead = $('volHead');
+  if (volHead) {
+    const span = volHead.querySelector('.ctrl-title');
+    if (span) span.textContent = t('volume').toUpperCase();
+  }
+  // Volume labels
+  const volDiceLabel = document.querySelector('#volBody .ctrl-row:nth-child(1) .ctrl-label');
+  if (volDiceLabel) volDiceLabel.textContent = t('diceSfx');
+  const volUiLabel = document.querySelector('#volBody .ctrl-row:nth-child(2) .ctrl-label');
+  if (volUiLabel) volUiLabel.textContent = t('uiSfx');
+  // Mute label
+  const muteLabel = document.querySelector('#chkMute + span');
+  if (muteLabel) muteLabel.textContent = t('muteAll');
+
+  // Mode tabs
+  if ($('tabDiceLbl')) $('tabDiceLbl').textContent = t('dice');
+  if ($('tabJankenLbl')) $('tabJankenLbl').textContent = t('janken');
+  if ($('lblJankenSpeed')) $('lblJankenSpeed').textContent = t('jankenSpeed');
+
+  // Janken
+  if ($('lblRock')) $('lblRock').textContent = t('rock');
+  if ($('lblPaper')) $('lblPaper').textContent = t('paper');
+  if ($('lblScissors')) $('lblScissors').textContent = t('scissors');
+  if ($('lblJankenRandom')) $('lblJankenRandom').textContent = t('jankenRandom');
+
+  // Appearance
+  if ($('appearTitle')) $('appearTitle').textContent = t('appearance').toUpperCase();
+  if ($('lblAccBar')) $('lblAccBar').textContent = t('accentBarLabel');
+
+  // History
+  const histHead = $('histHead');
+  if (histHead) {
+    const span = histHead.querySelector('.ctrl-title');
+    if (span) span.textContent = t('history').toUpperCase();
+  }
+  const btnClear = $('btnClearHist');
+  if (btnClear) btnClear.textContent = t('clearAll');
+
+  // Lang button
+  const btnLang = $('btnLang');
+  if (btnLang) btnLang.textContent = state.lang.toUpperCase();
+}
+
+let audioCtx = null;
+let showCtrl = false;
+
+/* ======================================================================
+   DICE ENGINE — Parse & Roll
+   ====================================================================== */
+const DiceEngine = {
+  /**
+   * Parse dice notation: NdX, NdXkh/klN, NdX!, +/-M
+   * Examples: "2d6", "4d6kh3", "1d20+5", "2d20kl1", "3d8!+2"
+   */
+  parse(input) {
+    const s = input.replace(/\s+/g, '').toLowerCase();
+    // Match: (N)d(X)(!(explode))?(kh|klN)?(+/-M)?
+    const m = s.match(/^(\d*)d(\d+)(!)?(?:(kh|kl)(\d+))?([+-]\d+)?$/);
+    if (!m) return null;
+    return {
+      count: parseInt(m[1] || '1', 10),
+      sides: parseInt(m[2], 10),
+      explode: !!m[3],
+      keep: m[4] || null,       // 'kh' or 'kl'
+      keepN: m[5] ? parseInt(m[5], 10) : null,
+      modifier: m[6] ? parseInt(m[6], 10) : 0,
+      raw: input.trim()
+    };
+  },
+
+  roll(parsed) {
+    if (!parsed) return null;
+    const { count, sides, explode, keep, keepN, modifier } = parsed;
+    if (count < 1 || count > 100 || sides < 2 || sides > 1000) return null;
+
+    // Roll dice
+    let rolls = [];
+    for (let i = 0; i < count; i++) {
+      let val = Math.floor(Math.random() * sides) + 1;
+      rolls.push(val);
+      // Exploding: re-roll on max
+      if (explode) {
+        let safety = 0;
+        while (val === sides && safety < 50) {
+          val = Math.floor(Math.random() * sides) + 1;
+          rolls.push(val);
+          safety++;
+        }
+      }
+    }
+
+    // Keep highest/lowest
+    let kept = rolls.slice();
+    let dropped = [];
+    if (keep && keepN !== null && keepN < rolls.length) {
+      const sorted = rolls.slice().sort((a, b) => b - a);
+      if (keep === 'kh') {
+        const threshold = sorted[keepN - 1];
+        kept = []; dropped = [];
+        let remaining = keepN;
+        for (const r of rolls) {
+          if (remaining > 0 && r >= threshold) {
+            kept.push(r);
+            remaining--;
+          } else {
+            dropped.push(r);
+          }
+        }
+      } else { // kl
+        const sortedAsc = rolls.slice().sort((a, b) => a - b);
+        const threshold = sortedAsc[keepN - 1];
+        kept = []; dropped = [];
+        let remaining = keepN;
+        for (const r of rolls) {
+          if (remaining > 0 && r <= threshold) {
+            kept.push(r);
+            remaining--;
+          } else {
+            dropped.push(r);
+          }
+        }
+      }
+    }
+
+    const subtotal = kept.reduce((a, b) => a + b, 0);
+    const total = subtotal + modifier;
+
+    // Crit/Fumble detection (single d20)
+    let isCrit = false, isFumble = false;
+    if (count === 1 && sides === 20 && !keep) {
+      if (rolls[0] === 20) isCrit = true;
+      if (rolls[0] === 1) isFumble = true;
+    }
+    // Max on any single die (for non-d20)
+    if (count === 1 && !keep && rolls[0] === sides && sides !== 20) {
+      isCrit = true;
+    }
+
+    return {
+      formula: parsed.raw,
+      rolls,
+      kept,
+      dropped,
+      modifier,
+      subtotal,
+      total,
+      sides,
+      count,
+      isCrit,
+      isFumble,
+      timestamp: Date.now()
+    };
+  }
+};
+
+/* ======================================================================
+   AUDIO SYSTEM
+   ====================================================================== */
+function getAudioCtx() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+  return audioCtx;
+}
+
+function getVolume(channel) {
+  if (state.volume.muted) return 0;
+  return state.volume[channel] || 0;
+}
+
+/** Play dice roll sound effect */
+function playDiceSfx() {
+  const vol = getVolume('dice');
+  if (vol <= 0) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    // Simulate dice rattling with noise bursts
+    for (let i = 0; i < 4; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const freq = 200 + Math.random() * 600;
+      osc.frequency.setValueAtTime(freq, now + i * 0.06);
+      osc.type = 'square';
+      gain.gain.setValueAtTime(vol * 0.25, now + i * 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.05);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + i * 0.06);
+      osc.stop(now + i * 0.06 + 0.05);
+    }
+  } catch(e) { logStatus('warn', 'SFX error: ' + e.message); }
+}
+
+/** Play crit fanfare */
+function playCritSfx() {
+  const vol = getVolume('ui');
+  if (vol <= 0) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(vol * 0.3, now + i * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.25);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + i * 0.1);
+      osc.stop(now + i * 0.1 + 0.25);
+    });
+  } catch(e) { logStatus('warn', 'Crit SFX error: ' + e.message); }
+}
+
+/** Play fumble sound */
+function playFumbleSfx() {
+  const vol = getVolume('ui');
+  if (vol <= 0) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.4);
+    osc.type = 'sawtooth';
+    gain.gain.setValueAtTime(vol * 0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.4);
+  } catch(e) { logStatus('warn', 'Fumble SFX error: ' + e.message); }
+}
+
+/* ======================================================================
+   UI — Display & Animation
+   ====================================================================== */
+const stageEl = $('stage');
+const resultWrap = $('resultWrap');
+const formulaEl = $('formula');
+const totalEl = $('total');
+const detailEl = $('detail');
+const userLabelEl = $('userLabel');
+const critBurst = $('critBurst');
+
+function displayResult(result, fromUser) {
+  if (!result) return;
+  // Hide janken, show dice
+  const jankenResult = $('jankenResult');
+  if (jankenResult) jankenResult.classList.remove('visible');
+  stageEl.classList.remove('idle', 'hidden');
+  state.rolling = true;
+
+  // Show formula
+  formulaEl.textContent = result.formula || '';
+
+  // Rolling animation
+  totalEl.classList.add('rolling');
+  totalEl.classList.remove('crit', 'fumble');
+  resultWrap.classList.remove('shake');
+  critBurst.innerHTML = '';
+
+  // Trigger shake
+  void resultWrap.offsetWidth; // reflow
+  resultWrap.classList.add('shake');
+
+  // Play dice sound
+  playDiceSfx();
+
+  // Animated number cycling
+  const duration = 600;
+  const start = Date.now();
+  const sides = result.sides || 20;
+
+  const cycleTimer = setInterval(() => {
+    totalEl.textContent = Math.floor(Math.random() * sides) + 1;
+  }, 50);
+
+  setTimeout(() => {
+    clearInterval(cycleTimer);
+    totalEl.classList.remove('rolling');
+    totalEl.textContent = result.total;
+    state.rolling = false;
+
+    // Detail line
+    let detailStr = '';
+    if (result.rolls && result.rolls.length > 1) {
+      if (result.dropped && result.dropped.length > 0) {
+        detailStr = '[' + result.rolls.map((r, i) => {
+          return result.dropped.includes(r) ? '~' + r + '~' : String(r);
+        }).join(', ') + ']';
+      } else {
+        detailStr = '[' + result.rolls.join(', ') + ']';
+      }
+      if (result.modifier) {
+        detailStr += (result.modifier > 0 ? ' + ' : ' - ') + Math.abs(result.modifier);
+      }
+    } else if (result.modifier) {
+      detailStr = result.rolls[0] + (result.modifier > 0 ? ' + ' : ' - ') + Math.abs(result.modifier);
+    }
+    detailEl.textContent = detailStr;
+
+    // User label
+    userLabelEl.textContent = fromUser ? ('by ' + fromUser) : '';
+
+    // Crit / Fumble
+    if (result.isCrit) {
+      totalEl.classList.add('crit');
+      playCritSfx();
+      spawnParticles();
+    } else if (result.isFumble) {
+      totalEl.classList.add('fumble');
+      playFumbleSfx();
+    }
+
+    // History
+    addHistory(result, fromUser);
+
+  }, duration);
+}
+
+function spawnParticles() {
+  critBurst.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    const p = document.createElement('div');
+    p.className = 'crit-particle';
+    const angle = (i / 12) * Math.PI * 2;
+    const dist = 40 + Math.random() * 40;
+    p.style.setProperty('--px', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--py', Math.sin(angle) * dist + 'px');
+    p.style.animationDelay = (Math.random() * 0.1) + 's';
+    critBurst.appendChild(p);
+  }
+}
+
+/* ======================================================================
+   HISTORY
+   ====================================================================== */
+function addHistory(result, fromUser) {
+  state.history.unshift({
+    formula: result.formula,
+    total: result.total,
+    detail: result.rolls ? result.rolls.join(',') : '',
+    isCrit: result.isCrit,
+    isFumble: result.isFumble,
+    user: fromUser || '',
+    time: new Date()
+  });
+  if (state.history.length > 100) state.history.pop();
+  renderHistory();
+  saveState();
+}
+
+function renderHistory() {
+  const list = $('historyList');
+  if (!list) return;
+  list.innerHTML = '';
+  state.history.forEach((h) => {
+    const row = document.createElement('div');
+    row.className = 'history-item';
+    const cls = h.isCrit ? ' crit' : h.isFumble ? ' fumble' : '';
+    row.innerHTML =
+      '<span class="hi-formula">' + esc(h.formula) + '</span>' +
+      '<span class="hi-result' + cls + '">' + h.total + '</span>' +
+      '<span class="hi-time">' + formatTime(h.time) + '</span>';
+    list.appendChild(row);
+  });
+  const countEl = $('histCount');
+  if (countEl) countEl.textContent = state.history.length + ' rolls';
+}
+
+function formatTime(d) {
+  if (!(d instanceof Date)) d = new Date(d);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+/* ======================================================================
+   PRESETS
+   ====================================================================== */
+function renderPresets() {
+  const row = $('presetRow');
+  if (!row) return;
+  row.innerHTML = '';
+  state.presets.forEach((p, i) => {
+    const tag = document.createElement('span');
+    tag.className = 'preset-tag';
+    tag.innerHTML = esc(p) + '<span class="pt-del" data-idx="' + i + '">&times;</span>';
+    tag.addEventListener('click', (e) => {
+      if (e.target.classList.contains('pt-del')) {
+        state.presets.splice(i, 1);
+        renderPresets();
+        saveState();
+        return;
+      }
+      doRoll(p);
+    });
+    row.appendChild(tag);
+  });
+}
+
+/* ======================================================================
+   JANKEN (Rock-Paper-Scissors)
+   ====================================================================== */
+const JANKEN_HANDS = ['rock', 'paper', 'scissors'];
+const JANKEN_CYCLE_ORDER = ['rock', 'paper', 'scissors'];
+const JANKEN_IMAGES = {
+  rock: 'images/rock.png',
+  paper: 'images/paper.png',
+  scissors: 'images/scissors.png'
+};
+
+function jankenAnimate(finalHand, onComplete) {
+  const duration = state.jankenDuration || 800;
+  const jankenResult = $('jankenResult');
+  const jankenImg = $('jankenImg');
+  const jankenLabel = $('jankenLabel');
+
+  // Show janken display, hide dice
+  if (stageEl) stageEl.classList.add('hidden');
+  jankenResult.classList.add('visible');
+
+  // Shake the container
+  jankenResult.classList.remove('shake');
+  void jankenResult.offsetWidth;
+  jankenResult.classList.add('shake');
+
+  // Play SFX
+  playDiceSfx();
+
+  // Cycling animation: start fast, decelerate
+  const totalCycles = Math.max(6, Math.round(duration / 80));
+  let cycle = 0;
+
+  function step() {
+    if (cycle >= totalCycles) {
+      // Final reveal
+      jankenImg.src = JANKEN_IMAGES[finalHand];
+      jankenLabel.textContent = t(finalHand);
+
+      // Pop animation on final image
+      jankenImg.style.animation = 'none';
+      void jankenImg.offsetWidth;
+      jankenImg.style.animation = 'jankenPop 0.4s cubic-bezier(.16,1,.3,1)';
+
+      // Highlight button
+      document.querySelectorAll('.janken-btn').forEach(btn => btn.classList.remove('selected'));
+      const btnMap = { rock: 'btnRock', paper: 'btnPaper', scissors: 'btnScissors' };
+      const sel = $(btnMap[finalHand]);
+      if (sel) sel.classList.add('selected');
+
+      if (onComplete) onComplete();
+      return;
+    }
+
+    // Show cycling hand
+    const hand = JANKEN_CYCLE_ORDER[cycle % 3];
+    jankenImg.src = JANKEN_IMAGES[hand];
+    jankenLabel.textContent = t(hand);
+
+    // Easing: intervals get longer as we approach the end
+    const progress = cycle / totalCycles;
+    const baseInterval = 60;
+    const interval = baseInterval + (progress * progress * 200);
+
+    cycle++;
+    setTimeout(step, interval);
+  }
+
+  step();
+}
+
+function showJankenResult(hand) {
+  // Send relay IMMEDIATELY so overlay starts animation at the same time as dock
+  var msg = {
+    cmd: 'rolled',
+    formula: t('janken'),
+    total: t(hand),
+    rolls: [hand],
+    jankenHand: hand,
+    isCrit: false,
+    isFumble: false,
+    isJanken: true,
+    jankenDuration: state.jankenDuration || 800,
+    timestamp: Date.now()
+  };
+  if (broadcastCh) {
+    try { broadcastCh.postMessage(msg); } catch(e) {}
+  }
+  try { window.parent.postMessage({ type: 'lt_app_relay', appId: 'dice', data: msg }, '*'); } catch(e) {}
+
+  // Play local animation (dock side)
+  jankenAnimate(hand, function() {
+    // Add to history after animation completes
+    var entry = {
+      formula: t('janken'),
+      total: t(hand),
+      rolls: [hand],
+      isCrit: false,
+      isFumble: false,
+      isJanken: true,
+      time: new Date()
+    };
+    state.history.unshift(entry);
+    if (state.history.length > 50) state.history.pop();
+    renderHistory();
+    saveState();
+  });
+}
+
+function jankenRandom() {
+  const finalHand = JANKEN_CYCLE_ORDER[Math.floor(Math.random() * 3)];
+  showJankenResult(finalHand);
+}
+
+/* ======================================================================
+   MAIN ROLL ACTION
+   ====================================================================== */
+function doRoll(formulaStr) {
+  if (state.rolling) return;
+  const parsed = DiceEngine.parse(formulaStr);
+  if (!parsed) {
+    logStatus('err', 'Invalid formula: ' + formulaStr);
+    return;
+  }
+  const result = DiceEngine.roll(parsed);
+  if (!result) {
+    logStatus('err', 'Roll failed (check limits)');
+    return;
+  }
+  // Apply crit/fumble toggle
+  if (!state.critEnabled) result.isCrit = false;
+  if (!state.fumbleEnabled) result.isFumble = false;
+  displayResult(result, null);
+
+  // Broadcast via BroadcastChannel (same-process instances)
+  var msg = {
+    cmd: 'rolled',
+    formula: result.formula,
+    total: result.total,
+    rolls: result.rolls,
+    kept: result.kept,
+    dropped: result.dropped,
+    modifier: result.modifier,
+    sides: result.sides,
+    count: result.count,
+    isCrit: result.isCrit,
+    isFumble: result.isFumble,
+    timestamp: result.timestamp
+  };
+  if (broadcastCh) {
+    try { broadcastCh.postMessage(msg); } catch(e) {}
+  }
+  // Relay via postMessage for cross-process (dock → overlay)
+  try { window.parent.postMessage({ type: 'lt_app_relay', appId: 'dice', data: msg }, '*'); } catch(e) {}
+}
+
+/* ======================================================================
+   STATUS LOGGING (ctrl panel only, never overlay)
+   ====================================================================== */
+function logStatus(type, msg) {
+  const bar = $('statusBar');
+  if (!bar) return;
+  const span = document.createElement('span');
+  span.className = type;
+  span.textContent = msg;
+  bar.innerHTML = '';
+  bar.appendChild(span);
+
+  // Auto-clear after 5s
+  setTimeout(() => {
+    if (bar.contains(span)) bar.innerHTML = '';
+  }, 5000);
+}
+
+/* ======================================================================
+   PERSISTENCE (localStorage)
+   ====================================================================== */
+function saveState() {
+  try {
+    localStorage.setItem('lt_dice_presets', JSON.stringify(state.presets));
+    localStorage.setItem('lt_dice_history', JSON.stringify(state.history.slice(0, 50)));
+    localStorage.setItem('lt_dice_volume', JSON.stringify(state.volume));
+    localStorage.setItem('lt_dice_lang', state.lang);
+    localStorage.setItem('lt_dice_crit', JSON.stringify({ critEnabled: state.critEnabled, fumbleEnabled: state.fumbleEnabled }));
+    localStorage.setItem('lt_dice_mode', state.mode);
+    localStorage.setItem('lt_dice_jankenDuration', String(state.jankenDuration));
+    localStorage.setItem('lt_dice_accent', JSON.stringify({ accentBar: state.accentBar, barColor: state.barColor }));
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const p = localStorage.getItem('lt_dice_presets');
+    if (p) state.presets = JSON.parse(p);
+    const h = localStorage.getItem('lt_dice_history');
+    if (h) {
+      state.history = JSON.parse(h);
+      state.history.forEach(item => { item.time = new Date(item.time); });
+    }
+    const v = localStorage.getItem('lt_dice_volume');
+    if (v) {
+      const saved = JSON.parse(v);
+      delete saved.tts; // clean up old TTS volume if present
+      Object.assign(state.volume, saved);
+    }
+    // Clean up old WS localStorage
+    try { localStorage.removeItem('lt_dice_ws'); } catch(_) {}
+    const lang = localStorage.getItem('lt_dice_lang');
+    if (lang && I18N[lang]) state.lang = lang;
+    const cr = localStorage.getItem('lt_dice_crit');
+    if (cr) {
+      const saved = JSON.parse(cr);
+      if (typeof saved.critEnabled === 'boolean') state.critEnabled = saved.critEnabled;
+      if (typeof saved.fumbleEnabled === 'boolean') state.fumbleEnabled = saved.fumbleEnabled;
+    }
+    // Clean up old TTS localStorage
+    try { localStorage.removeItem('lt_dice_tts'); } catch(_) {}
+    /* Always start in dice mode — janken images need to load first.
+       Mode is only switched by user interaction (tab click). */
+    const savedJD = localStorage.getItem('lt_dice_jankenDuration');
+    if (savedJD) state.jankenDuration = parseInt(savedJD, 10) || 800;
+    const ab = localStorage.getItem('lt_dice_accent');
+    if (ab) {
+      const saved = JSON.parse(ab);
+      if (saved.accentBar) state.accentBar = saved.accentBar;
+      if (saved.barColor) state.barColor = saved.barColor;
+    }
+  } catch(e) {}
+}
+
+/* ======================================================================
+   BROADCAST CHANNEL
+   ====================================================================== */
+let broadcastCh = null;
+try { broadcastCh = new BroadcastChannel('lt_app_dice'); } catch(e) {}
+if (broadcastCh) {
+  broadcastCh.onmessage = function(ev) {
+    const d = ev.data;
+    if (!d || !d.cmd) return;
+    if (d.cmd === 'roll') {
+      doRoll(d.formula || '1d20');
+    }
+    if (d.cmd === 'rolled') {
+      /* Only process on noctrl (display) side — ctrl side already played locally */
+      if (showCtrl) return;
+      if (d.isJanken && d.jankenHand) {
+        jankenAnimate(d.jankenHand, function() {});
+      } else {
+        displayResult({
+          formula: d.formula,
+          total: d.total,
+          rolls: d.rolls || [],
+          kept: d.kept || d.rolls || [],
+          dropped: d.dropped || [],
+          modifier: d.modifier || 0,
+          sides: d.sides || 20,
+          count: d.count || 1,
+          isCrit: !!d.isCrit,
+          isFumble: !!d.isFumble,
+          timestamp: d.timestamp || Date.now()
+        }, d.user || '');
+      }
+    }
+    if (d.cmd === 'switchMode' && d.mode) {
+      switchMode(d.mode, true);
+    }
+    if (d.cmd === 'config') {
+      if (d.accent) { document.documentElement.style.setProperty('--acc', d.accent); updateAccTextColor(); }
+      if (typeof d.showCtrl === 'boolean') setCtrlVisible(d.showCtrl);
+    }
+    if (d.cmd === 'getState') {
+      var last = state.history.length ? state.history[0] : null;
+      try {
+        broadcastCh.postMessage({
+          cmd: 'state',
+          lastRoll: last ? { formula: last.formula, total: last.total, rolls: last.rolls, isCrit: last.isCrit, isFumble: last.isFumble } : null,
+          historyCount: state.history.length,
+          presetsCount: state.presets.length
+        });
+      } catch(_) {}
+    }
+  };
+}
+
+/* ── Theme Sync Bridge + App Relay Receiver ── */
+window.addEventListener('message', function(ev) {
+  const d = ev && ev.data;
+  if (!d) return;
+  /* Theme sync from overlay.html */
+  if (d.cmd === 'lt_overlay_config' && d.themeSync !== false) {
+    if (d.accentColor) { document.documentElement.style.setProperty('--acc', d.accentColor); updateAccTextColor(); }
+    if (d.theme) document.documentElement.setAttribute('data-lt-theme', d.theme);
+    return;
+  }
+  /* App relay: receive commands from dock via overlay postMessage relay chain */
+  if (d.type === 'lt_app_cmd' && d.data) {
+    var rd = d.data;
+    if (rd.cmd === 'switchMode' && rd.mode) {
+      switchMode(rd.mode, true);
+    }
+    if (rd.cmd === 'rolled' && !showCtrl) {
+      if (rd.isJanken && rd.jankenHand) {
+        jankenAnimate(rd.jankenHand, function() {});
+      } else {
+        displayResult(rd, rd.user || null);
+      }
+    }
+    if (rd.cmd === 'accentBar') {
+      state.accentBar = rd.accentBar || 'accent';
+      state.barColor = rd.barColor || '#e8002d';
+      applyAccentBar();
+    }
+  }
+});
+
+/* ======================================================================
+   CTRL PANEL WIRING
+   ====================================================================== */
+function setCtrlVisible(v) {
+  showCtrl = v;
+  document.body.classList.toggle('has-ctrl', showCtrl);
+}
+
+function switchMode(mode, fromRemote) {
+  state.mode = mode;
+  var diceContent = $('modeDice');
+  var jankenContent = $('modeJanken');
+  var tabDice = $('tabDice');
+  var tabJanken = $('tabJanken');
+  var stageEl = $('stage');
+  var jankenResult = $('jankenResult');
+
+  if (mode === 'janken') {
+    if (diceContent) diceContent.style.display = 'none';
+    if (jankenContent) jankenContent.style.display = '';
+    if (tabDice) tabDice.classList.remove('active');
+    if (tabJanken) tabJanken.classList.add('active');
+    /* Display surface: show rock (グー) as initial pose */
+    if (stageEl) stageEl.classList.add('hidden');
+    if (jankenResult) {
+      jankenResult.classList.add('visible');
+      var ji = $('jankenImg');
+      var jl = $('jankenLabel');
+      if (ji) ji.src = JANKEN_IMAGES.rock;
+      if (jl) jl.textContent = t('rock');
+    }
+  } else {
+    if (diceContent) diceContent.style.display = '';
+    if (jankenContent) jankenContent.style.display = 'none';
+    if (tabDice) tabDice.classList.add('active');
+    if (tabJanken) tabJanken.classList.remove('active');
+    /* Display surface: show dice, hide janken */
+    if (stageEl) stageEl.classList.remove('hidden');
+    if (jankenResult) jankenResult.classList.remove('visible');
+  }
+  saveState();
+  /* Sync mode to overlay via relay (only from ctrl/dock side, not when receiving) */
+  if (!fromRemote && showCtrl) {
+    var msg = { cmd: 'switchMode', mode: mode };
+    if (broadcastCh) { try { broadcastCh.postMessage(msg); } catch(e) {} }
+    try { window.parent.postMessage({ type: 'lt_app_relay', appId: 'dice', data: msg }, '*'); } catch(e) {}
+  }
+}
+
+/** Compute relative luminance of a hex color and set --acc-text accordingly */
+function updateAccTextColor() {
+  var r = document.documentElement;
+  var acc = getComputedStyle(r).getPropertyValue('--acc').trim();
+  if (!acc) return;
+  /* Parse hex (#fff, #ffffff, or named) */
+  var hex = acc.replace(/^#/, '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  var rv = parseInt(hex.substr(0,2), 16) || 0;
+  var gv = parseInt(hex.substr(2,2), 16) || 0;
+  var bv = parseInt(hex.substr(4,2), 16) || 0;
+  /* Relative luminance (simplified sRGB) */
+  var lum = (0.299 * rv + 0.587 * gv + 0.114 * bv) / 255;
+  r.style.setProperty('--acc-text', lum > 0.55 ? '#111' : '#fff');
+}
+
+function applyAccentBar() {
+  var val;
+  if (state.accentBar === 'none') val = 'none';
+  else if (state.accentBar === 'custom') val = '4px solid ' + (state.barColor || '#e8002d');
+  else val = '4px solid var(--acc)';
+  document.documentElement.style.setProperty('--accent-bar', val);
+  /* Sync UI selects */
+  var sel = $('cfgAccentBar');
+  if (sel) sel.value = state.accentBar;
+  var col = $('cfgBarColor');
+  if (col) col.value = state.barColor || '#e8002d';
+}
+
+function wireControls() {
+  // Toggle
+  $('ctrlToggle').addEventListener('click', () => setCtrlVisible(!showCtrl));
+
+  // Quick dice buttons
+  document.querySelectorAll('[data-dice]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $('formulaInput').value = btn.dataset.dice;
+      doRoll(btn.dataset.dice);
+    });
+  });
+
+  // Roll button
+  $('btnRoll').addEventListener('click', () => doRoll($('formulaInput').value));
+  $('formulaInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doRoll($('formulaInput').value);
+  });
+
+  // Save preset
+  $('btnSavePreset').addEventListener('click', () => {
+    const v = $('formulaInput').value.trim();
+    if (v && !state.presets.includes(v)) {
+      state.presets.push(v);
+      renderPresets();
+      saveState();
+    }
+  });
+
+  // Crit/Fumble controls
+  $('chkCrit').addEventListener('change', function() { state.critEnabled = this.checked; saveState(); });
+  $('chkFumble').addEventListener('change', function() { state.fumbleEnabled = this.checked; saveState(); });
+
+  // Language toggle
+  $('btnLang').addEventListener('click', () => {
+    state.lang = state.lang === 'ja' ? 'en' : 'ja';
+    applyI18n();
+    saveState();
+  });
+
+  // Volume
+  ['Dice', 'Ui'].forEach(ch => {
+    const key = ch.toLowerCase();
+    const slider = $('vol' + ch);
+    const label = $('vol' + ch + 'Val');
+    if (slider) {
+      slider.addEventListener('input', function() {
+        state.volume[key] = parseFloat(this.value);
+        if (label) label.textContent = Math.round(this.value * 100) + '%';
+        saveState();
+      });
+    }
+  });
+  $('chkMute').addEventListener('change', function() { state.volume.muted = this.checked; saveState(); });
+
+  // Mode tabs
+  $('tabDice').addEventListener('click', () => switchMode('dice'));
+  $('tabJanken').addEventListener('click', () => switchMode('janken'));
+
+  // Janken
+  $('btnRock').addEventListener('click', () => showJankenResult('rock'));
+  $('btnPaper').addEventListener('click', () => showJankenResult('paper'));
+  $('btnScissors').addEventListener('click', () => showJankenResult('scissors'));
+  $('btnJankenRandom').addEventListener('click', () => jankenRandom());
+
+  // Janken duration slider
+  $('jankenDuration').addEventListener('input', function() {
+    state.jankenDuration = parseInt(this.value, 10);
+    $('jankenDurationVal').textContent = (state.jankenDuration / 1000).toFixed(1) + 's';
+    saveState();
+  });
+
+  // History
+  $('btnClearHist').addEventListener('click', () => {
+    state.history = [];
+    renderHistory();
+    saveState();
+  });
+
+  // Accent bar
+  $('cfgAccentBar').addEventListener('change', function() {
+    state.accentBar = this.value;
+    applyAccentBar();
+    saveState();
+    try { window.parent.postMessage({ type: 'lt_app_relay', appId: 'dice', data: { cmd: 'accentBar', accentBar: state.accentBar, barColor: state.barColor } }, '*'); } catch(e) {}
+  });
+  $('cfgBarColor').addEventListener('input', function() {
+    state.barColor = this.value;
+    if (state.accentBar === 'accent') state.accentBar = 'custom';
+    applyAccentBar();
+    saveState();
+    try { window.parent.postMessage({ type: 'lt_app_relay', appId: 'dice', data: { cmd: 'accentBar', accentBar: state.accentBar, barColor: state.barColor } }, '*'); } catch(e) {}
+  });
+
+  // Collapsible sections
+  ['crit', 'vol', 'appear', 'hist'].forEach(id => {
+    const head = $(id + 'Head');
+    const body = $(id + 'Body');
+    if (head && body) {
+      head.addEventListener('click', () => {
+        head.classList.toggle('open');
+        body.classList.toggle('open');
+      });
+    }
+  });
+
+  // Help modal
+  var helpModal = $('helpModal');
+  var helpJa = $('helpContentJa');
+  var helpEn = $('helpContentEn');
+  var helpTitle = $('helpTitle');
+  if (helpModal && $('btnHelp')) {
+    $('btnHelp').addEventListener('click', function() {
+      var isJa = state.lang === 'ja';
+      if (helpJa) helpJa.style.display = isJa ? '' : 'none';
+      if (helpEn) helpEn.style.display = isJa ? 'none' : '';
+      if (helpTitle) helpTitle.textContent = isJa ? 'TRPG Dice \u2014 \u4F7F\u3044\u65B9' : 'TRPG Dice \u2014 How to Use';
+      helpModal.style.display = '';
+    });
+    $('btnCloseHelp').addEventListener('click', function() {
+      helpModal.style.display = 'none';
+    });
+    helpModal.addEventListener('click', function(ev) {
+      if (ev.target === helpModal) helpModal.style.display = 'none';
+    });
+  }
+}
+
+/* ======================================================================
+   SYNC UI FROM STATE
+   ====================================================================== */
+function syncUI() {
+  $('volDice').value = state.volume.dice;
+  $('volDiceVal').textContent = Math.round(state.volume.dice * 100) + '%';
+  $('volUi').value = state.volume.ui;
+  $('volUiVal').textContent = Math.round(state.volume.ui * 100) + '%';
+  $('chkMute').checked = state.volume.muted;
+
+  $('chkCrit').checked = state.critEnabled;
+  $('chkFumble').checked = state.fumbleEnabled;
+
+  // Janken duration slider
+  const jdSlider = $('jankenDuration');
+  if (jdSlider) {
+    jdSlider.value = state.jankenDuration;
+    $('jankenDurationVal').textContent = (state.jankenDuration / 1000).toFixed(1) + 's';
+  }
+
+  applyI18n();
+  renderPresets();
+  renderHistory();
+}
+
+/* ======================================================================
+   URL PARAMS & INIT
+   ====================================================================== */
+function init() {
+  loadState();
+
+  // URL param overrides
+  if (params.get('ctrl') === '1' || params.get('dock') === '1') setCtrlVisible(true);
+  if (params.get('noctrl') === '1') setCtrlVisible(false);
+  if (params.get('formula')) $('formulaInput').value = params.get('formula');
+  if (params.get('autoroll') === '1') {
+    setTimeout(() => doRoll($('formulaInput').value || '1d20'), 300);
+  }
+  if (params.get('lang') && I18N[params.get('lang')]) state.lang = params.get('lang');
+  if (params.get('visual') === 'none') stageEl.classList.add('hidden');
+
+  wireControls();
+  syncUI();
+  applyAccentBar();
+  updateAccTextColor();
+  switchMode('dice');
+}
+
+// Keyboard shortcut: Space/Enter to roll (when not in input)
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    doRoll($('formulaInput').value || '1d20');
+  }
+});
+
+init();
+
+/* ── Cleanup on unload ── */
+window.addEventListener('beforeunload', () => {
+  if (broadcastCh) { try { broadcastCh.close(); } catch(e) {} broadcastCh = null; }
+});
+
+})();
+</script>
+</body>
+</html>
