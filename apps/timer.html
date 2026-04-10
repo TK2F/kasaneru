@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Timer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-wrap {
+  text-align: center;
+  padding: 18px 32px;
+  background: rgba(8,8,16,0.78);
+  border-radius: 16px;
+  min-width: 200px;
+  position: relative;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+  cursor: default;
+}
+.timer-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 6px;
+}
+.timer-display {
+  font-size: 56px; font-weight: 900;
+  letter-spacing: 0.03em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
+}
+.timer-display.warning { color: #ff9500; }
+.timer-display.danger  { color: #ff3b30; }
+.timer-display.finished { color: #ff3b30; animation: blink 1s ease-in-out infinite; }
+.timer-status {
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.3); margin-top: 4px; height: 12px;
+}
+.timer-status.is-running { color: var(--acc, #e8002d); }
+.timer-status.is-paused  { color: #ff9500; }
+.timer-bar {
+  position: absolute; bottom: 0; left: 0;
+  height: 3px; background: var(--acc, #e8002d);
+  border-radius: 0 0 0 14px; transition: width 0.5s linear;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* ── Controls (always visible below timer) ── */
+.ctrl {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.ctrl.hidden { display: none; }
+.ctrl-row { display: flex; gap: 4px; align-items: center; justify-content: center; }
+.ctrl-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; font-size: 10px; font-weight: 600;
+  padding: 5px 10px; border-radius: 6px;
+  cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase;
+  font-family: 'Segoe UI', sans-serif;
+}
+.ctrl-btn:hover { background: rgba(255,255,255,0.15); }
+.ctrl-btn.active { background: var(--acc, #e8002d); border-color: transparent; }
+.ctrl-btn.active:hover { filter: brightness(1.15); }
+.ctrl-input {
+  width: 38px; text-align: center;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; font-size: 14px; font-weight: 700;
+  padding: 3px 2px; border-radius: 5px; font-family: inherit;
+}
+.ctrl-input:focus { outline: none; border-color: var(--acc, #e8002d); }
+.ctrl-sep { font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.3); }
+.ctrl-check {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 9px; color: rgba(255,255,255,0.4);
+  cursor: pointer; font-family: 'Segoe UI', sans-serif;
+}
+.ctrl-check input { width: 12px; height: 12px; cursor: pointer; }
+.snd-name {
+  font-size: 8px; color: rgba(255,255,255,0.3);
+  max-width: 80px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.snd-err {
+  font-size: 8px; color: #ff3b30;
+  display: none; margin-top: 2px;
+}
+.snd-err.show { display: block; }
+
+/* Toggle button to show/hide controls */
+.ctrl-toggle {
+  position: absolute; top: 6px; right: 8px;
+  background: none; border: none;
+  color: rgba(255,255,255,0.2); font-size: 10px;
+  cursor: pointer; padding: 2px;
+}
+.ctrl-toggle:hover { color: rgba(255,255,255,0.5); }
+</style>
+</head>
+<body>
+<div class="timer-wrap" id="wrap">
+  <button class="ctrl-toggle" id="ctrl-toggle" title="Toggle controls">&#9881;</button>
+  <div class="timer-label" id="label">TIMER</div>
+  <div class="timer-display" id="display">05:00</div>
+  <div class="timer-status" id="status"></div>
+  <div class="timer-bar" id="bar"></div>
+
+  <div class="ctrl" id="ctrl">
+    <div class="ctrl-row">
+      <input class="ctrl-input" id="set-min" type="number" min="0" max="999" value="05">
+      <span class="ctrl-sep">:</span>
+      <input class="ctrl-input" id="set-sec" type="number" min="0" max="59" value="00">
+      <button class="ctrl-btn" id="btn-set">SET</button>
+    </div>
+    <div class="ctrl-row">
+      <button class="ctrl-btn active" id="btn-start">&#9654; Start</button>
+      <button class="ctrl-btn" id="btn-pause">&#10074;&#10074; Pause</button>
+      <button class="ctrl-btn" id="btn-reset">&#8635; Reset</button>
+    </div>
+    <div class="ctrl-row">
+      <label class="ctrl-check"><input type="checkbox" id="chk-beep" checked><span>Beep</span></label>
+      <button class="ctrl-btn" id="btn-snd" style="font-size:8px;padding:3px 6px;">&#128266; Sound</button>
+      <input type="file" id="snd-file" accept="audio/*" style="display:none">
+      <span class="snd-name" id="snd-name"></span>
+    </div>
+    <div class="ctrl-row" style="margin-top:4px;border-top:1px solid rgba(255,255,255,0.08);padding-top:4px;">
+      <select class="ctrl-input" id="cfg-font" style="width:auto;font-size:9px;padding:3px 4px;">
+        <option value="'Consolas','Courier New',monospace">Consolas</option>
+        <option value="'Arial',sans-serif">Arial</option>
+        <option value="'Segoe UI',sans-serif">Segoe UI</option>
+        <option value="system-ui,sans-serif">System</option>
+        <option value="'Georgia',serif">Georgia</option>
+      </select>
+      <input class="ctrl-input" id="cfg-fontsize" type="number" min="16" max="120" value="56" style="width:38px;">
+      <span style="font-size:8px;color:rgba(255,255,255,0.3);">px</span>
+    </div>
+    <div class="ctrl-row">
+      <input type="color" id="cfg-bg-color" value="#08081080" style="width:24px;height:20px;border:none;background:none;cursor:pointer;">
+      <input class="ctrl-input" id="cfg-bg-alpha" type="range" min="0" max="100" value="78" style="width:60px;height:14px;">
+      <span style="font-size:8px;color:rgba(255,255,255,0.3);">BG</span>
+    </div>
+    <div class="snd-err" id="snd-err"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var display  = document.getElementById('display');
+  var label    = document.getElementById('label');
+  var statusEl = document.getElementById('status');
+  var barEl    = document.getElementById('bar');
+  var ctrlEl   = document.getElementById('ctrl');
+  var ctrlToggle = document.getElementById('ctrl-toggle');
+
+  var mode = 'countdown';
+  var totalSeconds = 300;
+  var elapsed = 0;
+  var running = false;
+  var interval = null;
+  var warningAt = 60;
+  var dangerAt = 10;
+  var beepEnabled = true;
+  var audioCtx = null;
+  var customAudioBuffer = null;
+  var showCtrl = false;
+
+  function fmt(sec) {
+    var s = Math.abs(Math.floor(sec));
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var ss = s % 60;
+    if (h > 0) return String(h) + ':' + (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
+    return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
+  }
+
+  function updateBar() {
+    if (mode !== 'countdown' || totalSeconds <= 0) { barEl.style.width = '0%'; return; }
+    var pct = (elapsed / totalSeconds) * 100;
+    barEl.style.width = Math.min(100, pct) + '%';
+  }
+
+  function render() {
+    var remain;
+    if (mode === 'countdown') {
+      remain = Math.max(0, totalSeconds - elapsed);
+      display.textContent = fmt(remain);
+      display.classList.remove('warning', 'danger', 'finished');
+      if (remain <= 0) display.classList.add('finished');
+      else if (remain <= dangerAt) display.classList.add('danger');
+      else if (remain <= warningAt) display.classList.add('warning');
+    } else {
+      display.textContent = fmt(elapsed);
+      display.classList.remove('warning', 'danger', 'finished');
+    }
+    updateBar();
+    if (running) {
+      statusEl.textContent = mode === 'countdown' ? 'RUNNING' : 'COUNTING';
+      statusEl.className = 'timer-status is-running';
+    } else if (elapsed > 0) {
+      statusEl.textContent = 'PAUSED';
+      statusEl.className = 'timer-status is-paused';
+    } else {
+      statusEl.textContent = 'READY';
+      statusEl.className = 'timer-status';
+    }
+  }
+
+  /* ── Audio ── */
+  function getAudioCtx() {
+    if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+    return audioCtx;
+  }
+
+  function playBeep() {
+    if (!beepEnabled) return;
+    var ctx = getAudioCtx();
+    if (!ctx) return;
+    if (customAudioBuffer) {
+      try { var src = ctx.createBufferSource(); src.buffer = customAudioBuffer; src.connect(ctx.destination); src.start(0); } catch(e) {}
+      return;
+    }
+    try {
+      var t = ctx.currentTime;
+      for (var i = 0; i < 3; i++) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.frequency.value = 880; osc.type = 'sine';
+        gain.gain.setValueAtTime(0.3, t + i * 0.25);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.25 + 0.2);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(t + i * 0.25); osc.stop(t + i * 0.25 + 0.2);
+      }
+    } catch(e) {}
+  }
+
+  var sndErr = document.getElementById('snd-err');
+  function loadCustomAudio(fileOrUrl) {
+    var ctx = getAudioCtx();
+    if (!ctx) { showSndErr('AudioContext not available'); return; }
+    sndErr.classList.remove('show');
+
+    if (typeof fileOrUrl === 'string') {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', fileOrUrl, true);
+      xhr.responseType = 'arraybuffer';
+      xhr.onload = function() {
+        if (xhr.status >= 400) { showSndErr('File not found: ' + fileOrUrl); return; }
+        ctx.decodeAudioData(xhr.response, function(buf) { customAudioBuffer = buf; },
+          function() { showSndErr('Cannot decode audio'); });
+      };
+      xhr.onerror = function() { showSndErr('Failed to load: ' + fileOrUrl); };
+      xhr.send();
+    } else if (fileOrUrl && fileOrUrl.arrayBuffer) {
+      fileOrUrl.arrayBuffer().then(function(ab) {
+        ctx.decodeAudioData(ab, function(buf) { customAudioBuffer = buf; },
+          function() { showSndErr('Cannot decode audio'); });
+      }).catch(function() { showSndErr('Failed to read file'); });
+    }
+  }
+
+  function showSndErr(msg) {
+    sndErr.textContent = msg;
+    sndErr.classList.add('show');
+    setTimeout(function() { sndErr.classList.remove('show'); }, 5000);
+  }
+
+  /* ── Timer core ── */
+  function tick() {
+    elapsed++;
+    render();
+    bcSend({ cmd: 'tick', elapsed: elapsed, running: true, totalSeconds: totalSeconds, mode: mode });
+    if (mode === 'countdown' && elapsed >= totalSeconds) { stop(); playBeep(); bcSend({ cmd: 'stop', elapsed: elapsed }); }
+  }
+  function start() { if (running) return; running = true; interval = setInterval(tick, 1000); render(); }
+  function stop()  { running = false; if (interval) { clearInterval(interval); interval = null; } render(); }
+  function reset() { stop(); elapsed = 0; render(); }
+  /* Helper: broadcast command to sync other instances (dock ctrl ↔ overlay display) */
+  function bcSend(msg) { if (ch) try { ch.postMessage(msg); } catch(e) {} }
+
+  /* ── BroadcastChannel ── */
+  var ch;
+  try { ch = new BroadcastChannel('lt_app_timer'); } catch(e) {}
+  if (ch) {
+    ch.onmessage = function(e) {
+      var d = e.data;
+      if (!d) return;
+      if (d.cmd === 'start') {
+        if (isDisplayOnly) { running = true; render(); }
+        else start();
+      }
+      if (d.cmd === 'stop') {
+        stop();
+        if (typeof d.elapsed === 'number') { elapsed = d.elapsed; render(); }
+      }
+      if (d.cmd === 'reset') { stop(); elapsed = 0; render(); }
+      if (d.cmd === 'set') {
+        if (typeof d.seconds === 'number') totalSeconds = d.seconds;
+        if (d.mode) mode = d.mode;
+        if (typeof d.label === 'string') label.textContent = d.label;
+        if (typeof d.warning === 'number') warningAt = d.warning;
+        if (typeof d.danger === 'number') dangerAt = d.danger;
+        if (typeof d.beep === 'boolean') { beepEnabled = d.beep; chkBeep.checked = beepEnabled; }
+        if (d.soundUrl) loadCustomAudio(d.soundUrl);
+        syncInputs(); stop(); elapsed = 0; render();
+      }
+      if (d.cmd === 'config') {
+        if (d.accent) document.documentElement.style.setProperty('--acc', d.accent);
+        if (typeof d.beep === 'boolean') { beepEnabled = d.beep; chkBeep.checked = beepEnabled; }
+        if (d.soundUrl) loadCustomAudio(d.soundUrl);
+        if (typeof d.showCtrl === 'boolean') { showCtrl = d.showCtrl; ctrlEl.classList.toggle('hidden', !showCtrl); }
+      }
+      /* State sync: respond to state request from new instances */
+      if (d.cmd === 'getState') {
+        bcSend({ cmd: 'state', elapsed: elapsed, running: running,
+                 totalSeconds: totalSeconds, mode: mode });
+      }
+      /* State sync: receive state from running instance or periodic tick */
+      if (d.cmd === 'state' || d.cmd === 'tick') {
+        if (d.cmd === 'tick' && interval) return; /* Own timer running — ignore external ticks */
+        if (typeof d.elapsed === 'number') elapsed = d.elapsed;
+        if (typeof d.totalSeconds === 'number') totalSeconds = d.totalSeconds;
+        if (d.mode) mode = d.mode;
+        if (d.cmd === 'state') {
+          if (d.running && !running) {
+            if (isDisplayOnly) { running = true; render(); }
+            else start();
+          }
+          if (!d.running && running) stop();
+        }
+        syncInputs();
+        render();
+      }
+      /* Style config from other instance */
+      if (d.cmd === 'style') {
+        applyStyle(d);
+      }
+    };
+    /* Request state from any running instance on startup */
+    setTimeout(function() { bcSend({ cmd: 'getState' }); }, 100);
+  }
+
+  /* ── Theme sync bridge (postMessage from overlay.html) ── */
+  window.addEventListener('message', function(ev) {
+    var d = ev && ev.data;
+    if (!d || d.cmd !== 'lt_overlay_config') return;
+    if (d.accentColor) document.documentElement.style.setProperty('--acc', d.accentColor);
+    if (d.accent) document.documentElement.style.setProperty('--acc', d.accent);
+  });
+
+  /* ── URL params ── */
+  var params = new URLSearchParams(location.search);
+  if (params.get('mode')) mode = params.get('mode');
+  if (params.get('seconds')) totalSeconds = parseInt(params.get('seconds'), 10) || 300;
+  if (params.get('label')) label.textContent = params.get('label');
+  if (params.get('beep') === '0') beepEnabled = false;
+  if (params.get('autostart') === '1') { setTimeout(start, 100); }
+  /* Surface mode: ctrl=1 → dock (show all), noctrl=1 → display only (no controls, no toggle) */
+  var isDisplayOnly = params.get('noctrl') === '1';
+  if (params.get('ctrl') === '1') { showCtrl = true; }
+  if (isDisplayOnly) {
+    showCtrl = false;
+    ctrlEl.classList.add('hidden');
+    ctrlToggle.style.display = 'none';
+  }
+
+  /* ── Controls wiring ── */
+  var setMin  = document.getElementById('set-min');
+  var setSec  = document.getElementById('set-sec');
+  var chkBeep = document.getElementById('chk-beep');
+  var sndFile = document.getElementById('snd-file');
+  var sndName = document.getElementById('snd-name');
+
+  function syncInputs() {
+    setMin.value = String(Math.floor(totalSeconds / 60));
+    setSec.value = String(totalSeconds % 60);
+  }
+
+  document.getElementById('btn-set').addEventListener('click', function() {
+    var m = parseInt(setMin.value, 10) || 0;
+    var s = parseInt(setSec.value, 10) || 0;
+    totalSeconds = m * 60 + s;
+    mode = 'countdown';
+    reset();
+    bcSend({ cmd: 'set', seconds: totalSeconds, mode: 'countdown' });
+  });
+  document.getElementById('btn-start').addEventListener('click', function() {
+    start();
+    bcSend({ cmd: 'start' });
+  });
+  document.getElementById('btn-pause').addEventListener('click', function() {
+    stop();
+    bcSend({ cmd: 'stop', elapsed: elapsed });
+  });
+  document.getElementById('btn-reset').addEventListener('click', function() {
+    reset();
+    bcSend({ cmd: 'reset', elapsed: 0 });
+  });
+  chkBeep.checked = beepEnabled;
+  chkBeep.addEventListener('change', function() { beepEnabled = chkBeep.checked; });
+  document.getElementById('btn-snd').addEventListener('click', function() { sndFile.click(); });
+  sndFile.addEventListener('change', function() {
+    if (sndFile.files && sndFile.files[0]) {
+      sndName.textContent = sndFile.files[0].name;
+      loadCustomAudio(sndFile.files[0]);
+    }
+  });
+
+  ctrlToggle.addEventListener('click', function() {
+    showCtrl = !showCtrl;
+    ctrlEl.classList.toggle('hidden', !showCtrl);
+  });
+
+  /* ── Style config controls ── */
+  var wrapEl = document.getElementById('wrap');
+  var cfgFont = document.getElementById('cfg-font');
+  var cfgFontSize = document.getElementById('cfg-fontsize');
+  var cfgBgColor = document.getElementById('cfg-bg-color');
+  var cfgBgAlpha = document.getElementById('cfg-bg-alpha');
+
+  function applyStyle(cfg) {
+    if (cfg.fontFamily) { display.style.fontFamily = cfg.fontFamily; if (cfgFont) cfgFont.value = cfg.fontFamily; }
+    if (cfg.fontSize) { display.style.fontSize = cfg.fontSize + 'px'; if (cfgFontSize) cfgFontSize.value = cfg.fontSize; }
+    if (cfg.bgColor || cfg.bgAlpha != null) {
+      var hex = cfg.bgColor || cfgBgColor.value || '#080810';
+      var a = cfg.bgAlpha != null ? cfg.bgAlpha : parseInt(cfgBgAlpha.value, 10);
+      var r = parseInt(hex.substr(1,2), 16) || 8;
+      var g2 = parseInt(hex.substr(3,2), 16) || 8;
+      var b = parseInt(hex.substr(5,2), 16) || 16;
+      wrapEl.style.background = 'rgba(' + r + ',' + g2 + ',' + b + ',' + (a / 100) + ')';
+      if (cfgBgColor) cfgBgColor.value = hex;
+      if (cfgBgAlpha) cfgBgAlpha.value = a;
+    }
+  }
+  function sendStyleConfig() {
+    bcSend({ cmd: 'style', fontFamily: cfgFont.value, fontSize: parseInt(cfgFontSize.value, 10) || 56,
+             bgColor: cfgBgColor.value, bgAlpha: parseInt(cfgBgAlpha.value, 10) });
+  }
+  if (cfgFont) cfgFont.addEventListener('change', function() { applyStyle({ fontFamily: cfgFont.value }); sendStyleConfig(); });
+  if (cfgFontSize) cfgFontSize.addEventListener('change', function() { applyStyle({ fontSize: parseInt(cfgFontSize.value, 10) }); sendStyleConfig(); });
+  if (cfgBgColor) cfgBgColor.addEventListener('input', function() { applyStyle({ bgColor: cfgBgColor.value }); sendStyleConfig(); });
+  if (cfgBgAlpha) cfgBgAlpha.addEventListener('input', function() { applyStyle({ bgAlpha: parseInt(cfgBgAlpha.value, 10) }); sendStyleConfig(); });
+
+  /* Apply initial ctrl visibility */
+  ctrlEl.classList.toggle('hidden', !showCtrl);
+  syncInputs();
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+name,url,position,offsetX,offsetY,width,height,zLayer,opacity,animMode,borderRadius,group,scale,interactive,themeSync
+Timer,apps/timer.html,tr,0,0,320,180,50,100,default,14,,100,1,0
+Clock,apps/clock.html,tr,0,160,300,100,50,100,default,14,,100,0,0
+Now Playing,apps/now-playing.html,bl,0,0,500,80,50,100,fade,12,,100,0,0
+Banner,apps/banner/banner.html,tl,0,0,300,120,40,100,fade,0,,100,1,0
+Draw,apps/draw.html,full,0,0,1920,1080,90,100,none,0,,100,1,0
+Roulette,apps/roulette.html,br,0,0,400,480,60,100,fade,14,,100,1,0
+YouTube Chat,apps/youtube-chat.html,br,0,0,360,500,45,90,fade,14,,100,0,0
+Music Player,apps/music-player.html,bl,0,100,360,220,50,100,default,14,,100,1,1
+AI Chat,apps/ai-chat.html,br,0,0,420,600,70,100,fade,14,,100,1,0
+TRPG Dice,apps/dice/dice.html,center,0,0,280,200,80,100,fade,14,,100,1,1

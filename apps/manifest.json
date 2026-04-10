@@ -1,0 +1,82 @@
+{
+  "version": 2,
+  "apps": [
+    {
+      "id": "timer",
+      "name": "タイマー / Timer",
+      "path": "apps/timer.html",
+      "icon": "⏱",
+      "description": "Countdown/count-up timer with start, pause, reset controls.",
+      "displayMode": "widget",
+      "designMode": "app",
+      "defaultSize": { "width": 480, "height": 320 },
+      "features": ["broadcastChannel", "stateSync", "postMessage", "themeable"]
+    },
+    {
+      "id": "clock",
+      "name": "時計 / Clock",
+      "path": "apps/clock.html",
+      "icon": "🕐",
+      "description": "Analog/digital clock with configurable time zone and style.",
+      "displayMode": "widget",
+      "designMode": "app",
+      "defaultSize": { "width": 480, "height": 320 },
+      "features": ["broadcastChannel", "stateSync", "postMessage", "themeable"]
+    },
+    {
+      "id": "music-player",
+      "name": "ミュージックプレイヤー / Music Player",
+      "path": "apps/music-player.html",
+      "icon": "🎵",
+      "description": "Audio player with playlist, progress bar, and now-playing display.",
+      "displayMode": "widget",
+      "designMode": "app",
+      "defaultSize": { "width": 480, "height": 320 },
+      "features": ["broadcastChannel", "stateSync", "postMessage", "themeable"]
+    },
+    {
+      "id": "roulette",
+      "name": "ルーレット / Roulette",
+      "path": "apps/roulette.html",
+      "icon": "🎰",
+      "description": "Customizable roulette wheel with configurable items and reel mode.",
+      "displayMode": "widget",
+      "designMode": "app",
+      "defaultSize": { "width": 640, "height": 640 },
+      "features": ["broadcastChannel", "stateSync", "postMessage"]
+    },
+    {
+      "id": "draw",
+      "name": "ラクガキ / Rakugaki Draw",
+      "path": "apps/draw.html",
+      "icon": "🎨",
+      "description": "Telestrator annotation overlay — pen, shapes, pins, text on 1920×1080.",
+      "displayMode": "fullscreen",
+      "designMode": "app",
+      "defaultSize": { "width": 1920, "height": 1080 },
+      "features": ["broadcastChannel", "stateSync", "postMessage"]
+    },
+    {
+      "id": "banner",
+      "name": "バナー / Banner",
+      "path": "apps/banner/banner.html",
+      "icon": "📢",
+      "description": "Scrolling or static text banner for announcements.",
+      "displayMode": "widget",
+      "designMode": "app",
+      "defaultSize": { "width": 800, "height": 120 },
+      "features": ["broadcastChannel", "stateSync", "postMessage"]
+    },
+    {
+      "id": "dice",
+      "name": "TRPG ダイス / Dice",
+      "path": "apps/dice/dice.html",
+      "icon": "🎲",
+      "description": "TRPG dice roller with formula parser, SFX, and critical/fumble effects.",
+      "displayMode": "widget",
+      "designMode": "app",
+      "defaultSize": { "width": 480, "height": 480 },
+      "features": ["broadcastChannel", "stateSync", "postMessage"]
+    }
+  ]
+}

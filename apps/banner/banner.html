@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Banner — Kasaneru</title>
+<style>
+/* ── Reset ── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  color: #fff;
+}
+
+/* ── CSS Variables ── */
+:root {
+  --acc: #e8002d;
+  --bg-panel: rgba(8,8,16,0.92);
+  --bg-ctrl: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.12);
+  --text-dim: rgba(255,255,255,0.4);
+  --text-mid: rgba(255,255,255,0.65);
+}
+
+/* ── Display canvas (1920x1080 virtual) ── */
+.canvas {
+  position: relative;
+  width: 1920px; height: 1080px;
+  overflow: hidden;
+}
+/* Hide canvas in ctrl/dock mode — it's 1920px and would make huge whitespace */
+body.has-ctrl .canvas { display: none; }
+.banner-img {
+  position: absolute;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.banner-img.hidden { opacity: 0 !important; }
+.banner-img img {
+  display: block;
+  height: auto;
+}
+
+/* ── Control panel (dock mode) ── */
+body.has-ctrl {
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-panel);
+}
+.ctrl {
+  display: none;
+  padding: 8px 10px;
+}
+body.has-ctrl .ctrl { display: block; }
+
+.ctrl h3 {
+  font-size: 10px; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.ctrl-row {
+  display: flex; gap: 6px; align-items: center;
+  margin-bottom: 6px;
+}
+.ctrl-input {
+  flex: 1;
+  background: var(--bg-ctrl);
+  border: 1px solid var(--border);
+  color: #fff; font-size: 11px;
+  padding: 5px 8px; border-radius: 4px;
+  font-family: inherit;
+}
+.ctrl-input:focus { outline: none; border-color: var(--acc); }
+.ctrl-num {
+  width: 60px; flex: 0 0 60px;
+  text-align: center;
+}
+.ctrl-label {
+  font-size: 9px; color: var(--text-dim);
+  min-width: 16px; text-align: right;
+}
+.ctrl-btn {
+  background: var(--bg-ctrl);
+  border: 1px solid var(--border);
+  color: #fff; font-size: 10px; font-weight: 600;
+  padding: 5px 10px; border-radius: 4px;
+  cursor: pointer; text-transform: uppercase;
+  white-space: nowrap;
+}
+.ctrl-btn:hover { background: rgba(255,255,255,0.12); }
+.ctrl-btn.accent { background: var(--acc); border-color: transparent; }
+.ctrl-btn.accent:hover { background: #c70026; }
+.ctrl-btn.danger { color: #ff453a; }
+.ctrl-btn.danger:hover { background: rgba(255,69,58,0.15); }
+.ctrl-btn.small { font-size: 9px; padding: 3px 6px; }
+
+/* ── Lang toggle ── */
+.lang-toggle {
+  position: absolute; top: 6px; right: 6px;
+  background: var(--bg-ctrl);
+  border: 1px solid var(--border);
+  color: var(--text-dim); font-size: 9px;
+  padding: 2px 6px; border-radius: 3px;
+  cursor: pointer;
+}
+.lang-toggle:hover { color: #fff; }
+
+/* ── Image list ── */
+.img-list { margin-top: 4px; }
+.img-row {
+  display: flex; gap: 6px; align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 10px;
+}
+.img-row .thumb {
+  width: 24px; height: 24px; border-radius: 3px;
+  object-fit: cover; background: rgba(255,255,255,0.05);
+  flex-shrink: 0;
+}
+.img-row .name {
+  flex: 1; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-mid);
+}
+.img-row .row-btn {
+  background: none; border: none;
+  color: rgba(255,255,255,0.3);
+  cursor: pointer; font-size: 12px;
+  padding: 0 3px; line-height: 1;
+}
+.img-row .row-btn:hover { color: #fff; }
+.img-row .vis-on { color: #34c759; }
+.img-row .vis-off { color: rgba(255,255,255,0.2); }
+.img-row .del-btn:hover { color: #ff453a; }
+
+/* ── Edit panel ── */
+.edit-panel {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 4px 0;
+}
+.edit-panel .edit-title {
+  font-size: 10px; color: var(--text-mid);
+  margin-bottom: 6px; font-weight: 600;
+}
+
+/* 9-grid */
+.grid9 {
+  display: grid;
+  grid-template-columns: repeat(3, 36px);
+  grid-template-rows: repeat(3, 26px);
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.grid9 button {
+  background: var(--bg-ctrl);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 8px; font-weight: 700;
+  border-radius: 3px; cursor: pointer;
+  text-transform: uppercase;
+}
+.grid9 button:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.grid9 button.active {
+  background: var(--acc); border-color: transparent;
+  color: #fff;
+}
+
+.edit-row {
+  display: flex; gap: 6px; align-items: center;
+  margin-bottom: 4px;
+}
+.edit-row .ctrl-label { min-width: 44px; }
+
+/* Opacity slider */
+.slider-wrap {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+}
+.slider-wrap input[type="range"] {
+  flex: 1; height: 4px;
+  -webkit-appearance: none; appearance: none;
+  background: var(--border); border-radius: 2px;
+  outline: none;
+}
+.slider-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px;
+  background: var(--acc); border-radius: 50%;
+  cursor: pointer;
+}
+.slider-val {
+  font-size: 10px; color: var(--text-mid);
+  min-width: 28px; text-align: right;
+}
+
+/* ── Bottom bar ── */
+.bottom-bar {
+  display: flex; justify-content: space-between;
+  align-items: center;
+  margin-top: 10px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.item-count {
+  font-size: 9px; color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+
+<!-- Display surface -->
+<div class="canvas" id="canvas"></div>
+
+<!-- Control panel -->
+<div class="ctrl" id="ctrl">
+  <button class="lang-toggle" id="lang-toggle">EN</button>
+
+  <h3 id="lbl-title">Banner Images</h3>
+
+  <!-- Add section -->
+  <div class="ctrl-row">
+    <input class="ctrl-input" id="add-path" placeholder="images/logo.png (相対パス or 絶対パス)">
+    <button class="ctrl-btn accent" id="btn-add" data-i18n="add">+Add</button>
+  </div>
+
+  <!-- Image list -->
+  <div class="img-list" id="img-list"></div>
+
+  <!-- Edit panel placeholder -->
+  <div id="edit-area"></div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar">
+    <button class="ctrl-btn danger small" id="btn-clear" data-i18n="clearAll">Clear All</button>
+    <span class="item-count" id="item-count"></span>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ── i18n ── */
+  const I18N = {
+    ja: {
+      title: 'バナー画像',
+      add: '+追加',
+      clearAll: '全削除',
+      edit: '編集',
+      done: '完了',
+      position: '位置',
+      offsetX: 'X座標',
+      offsetY: 'Y座標',
+      scale: '拡大率',
+      opacity: '不透明度',
+      path: 'パス',
+      items: '{n}件',
+      noItems: 'アイテムなし',
+      confirmClear: '本当にすべて削除しますか？',
+    },
+    en: {
+      title: 'Banner Images',
+      add: '+Add',
+      clearAll: 'Clear All',
+      edit: 'Edit',
+      done: 'Done',
+      position: 'Pos',
+      offsetX: 'X offset',
+      offsetY: 'Y offset',
+      scale: 'Scale',
+      opacity: 'Opacity',
+      path: 'Path',
+      items: '{n} items',
+      noItems: 'No items',
+      confirmClear: 'Delete all items?',
+    }
+  };
+
+  let lang = localStorage.getItem('lt_banner_lang') || 'ja';
+
+  function t(key) {
+    return (I18N[lang] && I18N[lang][key]) || (I18N.en[key]) || key;
+  }
+
+  function applyLang() {
+    document.getElementById('lbl-title').textContent = t('title');
+    document.getElementById('btn-add').textContent = t('add');
+    document.getElementById('btn-clear').textContent = t('clearAll');
+    document.getElementById('lang-toggle').textContent = lang === 'ja' ? 'EN' : 'JA';
+    updateItemCount();
+    renderList();
+  }
+
+  document.getElementById('lang-toggle').addEventListener('click', () => {
+    lang = lang === 'ja' ? 'en' : 'ja';
+    localStorage.setItem('lt_banner_lang', lang);
+    applyLang();
+  });
+
+  /* ── State ── */
+  const STORE_KEY = 'lt_banner_items';
+  let banners = [];
+  let nextId = 1;
+  let editingId = null;
+
+  /* ── DOM refs ── */
+  const canvas = document.getElementById('canvas');
+  const ctrlEl = document.getElementById('ctrl');
+  const imgListEl = document.getElementById('img-list');
+  const editArea = document.getElementById('edit-area');
+  const itemCountEl = document.getElementById('item-count');
+
+  /* ── URL params ── */
+  const params = new URLSearchParams(location.search);
+  const isNoctrl = params.get('noctrl') === '1';
+  const isCtrl = params.get('ctrl') === '1';
+
+  if (isNoctrl) {
+    document.body.classList.remove('has-ctrl');
+  } else {
+    /* Show ctrl panel in ctrl mode, dock mode, or standalone (no params) */
+    document.body.classList.add('has-ctrl');
+  }
+
+  /* ── Path resolver ── */
+  function resolvePath(src) {
+    if (!src) return '';
+    if (/^(https?:|file:|data:)/i.test(src)) return src;
+    if (/^[A-Za-z]:[\\/]/.test(src)) return 'file:///' + src.replace(/\\/g, '/');
+    return src;
+  }
+
+  /* ── Persistence ── */
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ banners, nextId })); } catch(e) {}
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (Array.isArray(data)) {
+        // Legacy format: bare array
+        banners = data;
+        for (const b of banners) { if (b.id >= nextId) nextId = b.id + 1; }
+      } else if (data && Array.isArray(data.banners)) {
+        banners = data.banners;
+        nextId = data.nextId || 1;
+      }
+      // Migrate old x/y/w/h format
+      for (const b of banners) {
+        if (b.position === undefined) b.position = 'tl';
+        if (b.offsetX === undefined) b.offsetX = b.x || 0;
+        if (b.offsetY === undefined) b.offsetY = b.y || 0;
+        if (b.scale === undefined) b.scale = 10;
+        if (b.opacity === undefined) b.opacity = 100;
+        if (b.visible === undefined) b.visible = true;
+      }
+    } catch(e) {}
+  }
+
+  /* ── 9-grid positioning ── */
+  function applyPosition(el, item) {
+    const ox = item.offsetX || 0;
+    const oy = item.offsetY || 0;
+    const pos = item.position || 'tl';
+
+    // Reset all positioning
+    el.style.left = ''; el.style.right = '';
+    el.style.top = ''; el.style.bottom = '';
+    el.style.transform = '';
+
+    switch (pos) {
+      case 'tl':
+        el.style.left = ox + 'px'; el.style.top = oy + 'px';
+        break;
+      case 'tc':
+        el.style.left = 'calc(50% + ' + ox + 'px)'; el.style.top = oy + 'px';
+        el.style.transform = 'translateX(-50%)';
+        break;
+      case 'tr':
+        el.style.right = ox + 'px'; el.style.top = oy + 'px';
+        break;
+      case 'cl':
+        el.style.left = ox + 'px'; el.style.top = 'calc(50% + ' + oy + 'px)';
+        el.style.transform = 'translateY(-50%)';
+        break;
+      case 'cc':
+        el.style.left = 'calc(50% + ' + ox + 'px)'; el.style.top = 'calc(50% + ' + oy + 'px)';
+        el.style.transform = 'translate(-50%,-50%)';
+        break;
+      case 'cr':
+        el.style.right = ox + 'px'; el.style.top = 'calc(50% + ' + oy + 'px)';
+        el.style.transform = 'translateY(-50%)';
+        break;
+      case 'bl':
+        el.style.left = ox + 'px'; el.style.bottom = oy + 'px';
+        break;
+      case 'bc':
+        el.style.left = 'calc(50% + ' + ox + 'px)'; el.style.bottom = oy + 'px';
+        el.style.transform = 'translateX(-50%)';
+        break;
+      case 'br':
+        el.style.right = ox + 'px'; el.style.bottom = oy + 'px';
+        break;
+    }
+  }
+
+  /* ── Render banners on canvas ── */
+  function renderBanners() {
+    canvas.innerHTML = '';
+    for (const b of banners) {
+      const wrap = document.createElement('div');
+      wrap.className = 'banner-img' + (b.visible ? '' : ' hidden');
+      wrap.dataset.id = b.id;
+      wrap.style.opacity = String((b.opacity ?? 100) / 100);
+
+      const img = document.createElement('img');
+      img.src = resolvePath(b.src);
+      img.style.width = Math.round(1920 * (b.scale || 10) / 100) + 'px';
+      img.style.height = 'auto';
+      img.onerror = function() { this.style.display = 'none'; };
+
+      wrap.appendChild(img);
+      applyPosition(wrap, b);
+      canvas.appendChild(wrap);
+    }
+  }
+
+  /* ── Update item count ── */
+  function updateItemCount() {
+    const n = banners.length;
+    itemCountEl.textContent = n === 0 ? t('noItems') : t('items').replace('{n}', n);
+  }
+
+  /* ── Render control list ── */
+
+  /* Delegated click handler — one listener on the container */
+  imgListEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const bid = Number(btn.dataset.bannerId);
+    const action = btn.dataset.action;
+
+    if (action === 'toggle') {
+      const b = banners.find(x => x.id === bid);
+      if (!b) return;
+      b.visible = !b.visible;
+      save(); renderBanners(); renderList();
+      bcSend({ cmd: 'toggle', id: b.id, visible: b.visible });
+    } else if (action === 'edit') {
+      editingId = (editingId === bid) ? null : bid;
+      renderList();
+      renderEditPanel();
+    } else if (action === 'delete') {
+      banners = banners.filter(x => x.id !== bid);
+      if (editingId === bid) { editingId = null; renderEditPanel(); }
+      save(); renderBanners(); renderList();
+      bcSend({ cmd: 'remove', id: bid });
+    }
+  });
+
+  function renderList() {
+    imgListEl.innerHTML = '';
+    for (let i = 0; i < banners.length; i++) {
+      const b = banners[i];
+      const row = document.createElement('div');
+      row.className = 'img-row';
+
+      // Thumbnail
+      const thumb = document.createElement('img');
+      thumb.className = 'thumb';
+      thumb.src = resolvePath(b.src);
+      thumb.onerror = function() { this.style.background = 'rgba(255,60,60,0.2)'; this.removeAttribute('src'); };
+
+      // Name
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = b.src.split('/').pop() || b.src;
+      name.title = b.src;
+
+      // Visibility toggle
+      const vis = document.createElement('button');
+      vis.className = 'row-btn ' + (b.visible ? 'vis-on' : 'vis-off');
+      vis.textContent = b.visible ? '\u25CF' : '\u25CB';
+      vis.dataset.action = 'toggle';
+      vis.dataset.bannerId = b.id;
+
+      // Edit button
+      const edit = document.createElement('button');
+      edit.className = 'row-btn';
+      edit.textContent = '\u270E'; // pencil
+      edit.title = t('edit');
+      edit.dataset.action = 'edit';
+      edit.dataset.bannerId = b.id;
+
+      // Delete button
+      const del = document.createElement('button');
+      del.className = 'row-btn del-btn';
+      del.textContent = '\u00D7';
+      del.dataset.action = 'delete';
+      del.dataset.bannerId = b.id;
+
+      row.appendChild(thumb);
+      row.appendChild(name);
+      row.appendChild(vis);
+      row.appendChild(edit);
+      row.appendChild(del);
+      imgListEl.appendChild(row);
+    }
+    updateItemCount();
+  }
+
+  /* ── Edit panel ── */
+  const GRID_POSITIONS = ['tl','tc','tr','cl','cc','cr','bl','bc','br'];
+
+  function renderEditPanel() {
+    editArea.innerHTML = '';
+    if (editingId === null) return;
+    const item = banners.find(b => b.id === editingId);
+    if (!item) { editingId = null; return; }
+
+    const panel = document.createElement('div');
+    panel.className = 'edit-panel';
+
+    // Title
+    const title = document.createElement('div');
+    title.className = 'edit-title';
+    title.textContent = (item.src.split('/').pop() || item.src);
+    panel.appendChild(title);
+
+    // Path edit
+    var pathRow = document.createElement('div');
+    pathRow.className = 'edit-row';
+    var pathLabel = document.createElement('span');
+    pathLabel.className = 'ctrl-label';
+    pathLabel.textContent = t('path') || 'Path';
+    var pathInput = document.createElement('input');
+    pathInput.className = 'ctrl-input';
+    pathInput.type = 'text';
+    pathInput.value = item.src;
+    pathInput.addEventListener('change', function() {
+      var newSrc = pathInput.value.trim().replace(/\\/g, '/');
+      if (newSrc) {
+        item.src = newSrc;
+        save(); renderBanners(); renderList();
+        bcSend({ cmd: 'update', id: item.id, src: newSrc });
+      }
+    });
+    pathRow.appendChild(pathLabel);
+    pathRow.appendChild(pathInput);
+    panel.appendChild(pathRow);
+
+    // 9-grid
+    const gridLabel = document.createElement('div');
+    gridLabel.className = 'ctrl-label';
+    gridLabel.style.marginBottom = '4px';
+    gridLabel.textContent = t('position');
+    panel.appendChild(gridLabel);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid9';
+    for (const pos of GRID_POSITIONS) {
+      const btn = document.createElement('button');
+      btn.textContent = pos;
+      if (item.position === pos) btn.classList.add('active');
+      btn.addEventListener('click', () => {
+        item.position = pos;
+        save(); renderBanners(); renderEditPanel();
+        bcSend({ cmd: 'update', id: item.id, position: pos });
+      });
+      grid.appendChild(btn);
+    }
+    panel.appendChild(grid);
+
+    // Offset X
+    panel.appendChild(makeNumberRow(t('offsetX'), item.offsetX, 'px', val => {
+      item.offsetX = val;
+      save(); renderBanners();
+      bcSend({ cmd: 'update', id: item.id, offsetX: val });
+    }));
+
+    // Offset Y
+    panel.appendChild(makeNumberRow(t('offsetY'), item.offsetY, 'px', val => {
+      item.offsetY = val;
+      save(); renderBanners();
+      bcSend({ cmd: 'update', id: item.id, offsetY: val });
+    }));
+
+    // Scale
+    panel.appendChild(makeNumberRow(t('scale'), item.scale, '%', val => {
+      item.scale = Math.max(1, val);
+      save(); renderBanners();
+      bcSend({ cmd: 'update', id: item.id, scale: item.scale });
+    }));
+
+    // Opacity slider
+    const opRow = document.createElement('div');
+    opRow.className = 'edit-row';
+    const opLabel = document.createElement('span');
+    opLabel.className = 'ctrl-label';
+    opLabel.textContent = t('opacity');
+    const sliderWrap = document.createElement('div');
+    sliderWrap.className = 'slider-wrap';
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = '0'; slider.max = '100';
+    slider.value = String(item.opacity ?? 100);
+    const sliderVal = document.createElement('span');
+    sliderVal.className = 'slider-val';
+    sliderVal.textContent = slider.value + '%';
+    slider.addEventListener('input', () => {
+      const v = parseInt(slider.value, 10);
+      sliderVal.textContent = v + '%';
+      item.opacity = v;
+      save(); renderBanners();
+      bcSend({ cmd: 'update', id: item.id, opacity: v });
+    });
+    sliderWrap.appendChild(slider);
+    sliderWrap.appendChild(sliderVal);
+    opRow.appendChild(opLabel);
+    opRow.appendChild(sliderWrap);
+    panel.appendChild(opRow);
+
+    // Done button
+    const doneRow = document.createElement('div');
+    doneRow.style.marginTop = '8px';
+    doneRow.style.textAlign = 'right';
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'ctrl-btn accent small';
+    doneBtn.textContent = t('done');
+    doneBtn.addEventListener('click', () => {
+      editingId = null;
+      renderEditPanel();
+    });
+    doneRow.appendChild(doneBtn);
+    panel.appendChild(doneRow);
+
+    editArea.appendChild(panel);
+  }
+
+  function makeNumberRow(label, value, unit, onChange) {
+    const row = document.createElement('div');
+    row.className = 'edit-row';
+    const lbl = document.createElement('span');
+    lbl.className = 'ctrl-label';
+    lbl.textContent = label;
+    const inp = document.createElement('input');
+    inp.className = 'ctrl-input ctrl-num';
+    inp.type = 'number';
+    inp.value = String(value);
+    inp.step = '1';
+    const u = document.createElement('span');
+    u.className = 'ctrl-label';
+    u.style.minWidth = '16px';
+    u.textContent = unit;
+    inp.addEventListener('change', () => {
+      onChange(parseInt(inp.value, 10) || 0);
+    });
+    row.appendChild(lbl);
+    row.appendChild(inp);
+    row.appendChild(u);
+    return row;
+  }
+
+  /* ── Add image ── */
+  document.getElementById('btn-add').addEventListener('click', () => {
+    const src = document.getElementById('add-path').value.trim().replace(/\\/g, '/');
+    if (!src) return;
+    const item = {
+      id: nextId++,
+      src,
+      position: 'tl',
+      offsetX: 0,
+      offsetY: 0,
+      scale: 10,
+      opacity: 100,
+      visible: true
+    };
+    banners.push(item);
+    document.getElementById('add-path').value = '';
+    save(); renderBanners(); renderList();
+    bcSend({ cmd: 'show', id: item.id, src: item.src, position: item.position, offsetX: item.offsetX, offsetY: item.offsetY, scale: item.scale, opacity: item.opacity });
+  });
+
+  document.getElementById('add-path').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-add').click();
+  });
+
+  /* ── Clear all ── */
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    banners = [];
+    nextId = 1;
+    editingId = null;
+    save(); renderBanners(); renderList(); renderEditPanel();
+    bcSend({ cmd: 'clear' });
+  });
+
+  /* ── BroadcastChannel ── */
+  let ch = null;
+  try { ch = new BroadcastChannel('lt_app_nagashi'); } catch(e) {}
+
+  function bcSend(msg) {
+    if (ch) try { ch.postMessage(msg); } catch(e) {}
+  }
+
+  if (ch) {
+    ch.onmessage = function(e) {
+      const d = e.data;
+      if (!d || !d.cmd) return;
+
+      switch (d.cmd) {
+        case 'show':
+          if (!d.src) break;
+          banners.push({
+            id: d.id || nextId++,
+            src: d.src,
+            position: d.position || 'tl',
+            offsetX: d.offsetX ?? 0,
+            offsetY: d.offsetY ?? 0,
+            scale: d.scale ?? 10,
+            opacity: d.opacity ?? 100,
+            visible: true
+          });
+          if (d.id && d.id >= nextId) nextId = d.id + 1;
+          save(); renderBanners(); renderList();
+          break;
+
+        case 'toggle':
+          if (d.id != null) {
+            const b = banners.find(x => x.id === d.id);
+            if (b) { b.visible = d.visible; save(); renderBanners(); renderList(); }
+          }
+          break;
+
+        case 'update':
+          if (d.id != null) {
+            const b = banners.find(x => x.id === d.id);
+            if (b) {
+              if (d.src !== undefined) b.src = d.src;
+              if (d.position !== undefined) b.position = d.position;
+              if (d.offsetX !== undefined) b.offsetX = d.offsetX;
+              if (d.offsetY !== undefined) b.offsetY = d.offsetY;
+              if (d.scale !== undefined) b.scale = d.scale;
+              if (d.opacity !== undefined) b.opacity = d.opacity;
+              save(); renderBanners(); renderList();
+              if (editingId === d.id) renderEditPanel();
+            }
+          }
+          break;
+
+        case 'remove':
+          if (d.id != null) {
+            banners = banners.filter(x => x.id !== d.id);
+            if (editingId === d.id) { editingId = null; renderEditPanel(); }
+            save(); renderBanners(); renderList();
+          }
+          break;
+
+        case 'clear':
+          banners = []; nextId = 1; editingId = null;
+          save(); renderBanners(); renderList(); renderEditPanel();
+          break;
+
+        case 'config':
+          if (d.accent) document.documentElement.style.setProperty('--acc', d.accent);
+          break;
+
+        case 'getState':
+          bcSend({ cmd: 'state', banners, nextId });
+          break;
+
+        case 'state':
+          if (Array.isArray(d.banners)) {
+            banners = d.banners;
+            nextId = d.nextId || 1;
+            save(); renderBanners(); renderList();
+            if (editingId !== null) renderEditPanel();
+          }
+          break;
+      }
+    };
+  }
+
+  /* ── postMessage: lt_overlay_config theme sync ── */
+  window.addEventListener('message', ev => {
+    const d = ev && ev.data;
+    if (!d || d.cmd !== 'lt_overlay_config' || d.themeSync === false) return;
+    if (d.accentColor) document.documentElement.style.setProperty('--acc', d.accentColor);
+    if (d.theme) document.documentElement.setAttribute('data-lt-theme', d.theme);
+  });
+
+  /* ── Cleanup ── */
+  window.addEventListener('beforeunload', () => {
+    if (ch) try { ch.close(); } catch(e) {}
+  });
+
+  /* ── Init ── */
+  load();
+  renderBanners();
+  if (!isNoctrl) {
+    renderList();
+    applyLang();
+  }
+
+  // Request state from any running instance
+  setTimeout(() => bcSend({ cmd: 'getState' }), 100);
+})();
+</script>
+</body>
+</html>
