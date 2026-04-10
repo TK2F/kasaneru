@@ -3,7 +3,7 @@
 **OBS で使える、かんたんオーバーレイセット**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-green.svg)]()
+![Version](https://img.shields.io/badge/Version-1.0.0-green.svg)
 
 > **English summary below** — [Jump to English](#english)
 
@@ -183,6 +183,17 @@ MIT License — 詳しくは [LICENSE](LICENSE) を参照してください。
 ## Contributing
 
 Issue や Pull Request を歓迎します。詳しくは [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
+
+---
+
+## サポート / Support
+
+Kasaneru が少しでもお役に立てれば嬉しいです。
+
+TK2LAB では「学びを楽しみ、発見を共有する」をモットーに、ツールを作っています。
+Kasaneru もそうした取り組みのひとつです。
+
+もしこの活動に共感いただけたら、[GitHub Sponsors](https://github.com/sponsors/tk2f) で応援いただけると励みになります。
 
 ---
 

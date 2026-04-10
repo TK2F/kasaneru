@@ -195,8 +195,5 @@ OBS の **カスタムブラウザドック**（`dock.html`）と **ブラウザ
 
 - [SPEC.md](./SPEC.md) — 仕様・要件
 - [CSV-TEMPLATES.md](./CSV-TEMPLATES.md) — CSV 列定義・スプレッドシート手順
-- [REMOTE-CONTROL.md](./REMOTE-CONTROL.md) — Stream Deck / WebSocket 外部制御
 - [BROADCAST-SETUP.md](./BROADCAST-SETUP.md) — OBS 解像度
-- [QA-CHECKLIST.md](./QA-CHECKLIST.md) — テスト観点
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — 構成図・ガイド判定の詳細
-- [HANDOFF.md](../HANDOFF.md) — 開発引き継ぎ・プロトコル

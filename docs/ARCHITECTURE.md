@@ -76,7 +76,7 @@ sequenceDiagram
 | 設定 | `theme`, `accentColor`, `appearanceMode`, `layerOrder`, `layoutGuidesMode`, `labelFontSyncBadge`, … |
 | Dock UI | `dockUi`, `uiLang`, `editLocked`, `dockChromeAccent` |
 
-詳細は `HANDOFF.md` と `dock.html` 内 `saveState()` を参照。
+詳細は `dock.html` 内 `saveState()` を参照。
 
 ## 技術制約（L1）
 

@@ -3,7 +3,7 @@
 **Simple overlay toolkit for OBS Studio**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-green.svg)]()
+![Version](https://img.shields.io/badge/Version-1.0.0-green.svg)
 
 > Japanese README: [README.md](README.md)
 
@@ -114,3 +114,14 @@ See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for details.
 ## Contributing
 
 Issues and Pull Requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## Support
+
+We hope Kasaneru helps you.
+
+At TK2LAB, we focus on exploring, learning, enjoying the process, and sharing discoveries.
+Kasaneru is one of the projects born from that ongoing effort.
+
+If you resonate with this approach, we'd be grateful for your support via [GitHub Sponsors](https://github.com/sponsors/tk2f).

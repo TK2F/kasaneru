@@ -70,7 +70,7 @@ $pathPatterns = @(
 )
 $docFiles = Get-ChildItem -Path (Join-Path $proj 'docs') -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue |
   Where-Object { $_.FullName -notmatch '\\docs\\SECURITY-PRIVACY\.md$' }
-$docFiles += Get-ChildItem -Path $proj -File -Include 'README*.md','HANDOFF.md' -ErrorAction SilentlyContinue
+$docFiles += Get-ChildItem -Path $proj -File -Include 'README*.md','CONTRIBUTING.md' -ErrorAction SilentlyContinue
 
 $pathHits = @()
 foreach ($f in $docFiles) {
