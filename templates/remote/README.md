@@ -13,7 +13,7 @@ This folder contains ready-to-use payload samples for external control clients s
 
 See:
 
-- `docs/REMOTE-CONTROL.md`
+- `docs/ARCHITECTURE.md`
 
 The dock expects JSON like:
 

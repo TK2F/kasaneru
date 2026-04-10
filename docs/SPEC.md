@@ -21,7 +21,7 @@
 - **dock.html**: リスト編集、グループ、設定（テーマ、アクセント、レイヤー、オフセット、ガイド、**CSV（チャプター / タイトルカード / 画像・種別選択と置換インポート）**、Undo、編集ロック、i18n 等）。画面上部は **言語切替のみ（右寄せ）**。
 - **overlay.html**: `sync` / `hide` / TitleCard / 画像メッセージに応じた表示・アニメーション。
 - **永続化**: `localStorage` キー `lt_ch_v5`。
-- **制約**: ES5、CDN 禁止（`HANDOFF.md` 参照）。
+- **制約**: ES5、CDN 禁止（`CLAUDE.md` 参照）。
 
 ## 4. 非機能要件
 
@@ -48,5 +48,5 @@
 - [CSV-TEMPLATES.md](./CSV-TEMPLATES.md) — CSV 列・スプレッドシート手順
 - [BROADCAST-SETUP.md](./BROADCAST-SETUP.md) — OBS 解像度のおすすめ
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — 通信・構成
-- [HANDOFF.md](../HANDOFF.md) — プロトコル詳細
+- [CLAUDE.md](../CLAUDE.md) — 開発ルール
 

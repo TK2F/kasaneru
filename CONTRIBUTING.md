@@ -11,11 +11,11 @@ Thanks for considering contributing.
 ### How to test
 
 - Open `dock.html` and `overlay.html` in OBS as documented in `README.md`.
-- Run the scenarios in `docs/QA-CHECKLIST.md`.
+- Verify basic dock / overlay sync works as described in `docs/OPERATION-GUIDE.md`.
 
 ### Pull requests
 
 - Keep changes small and reviewable.
 - Update docs when behavior changes.
-- If you touch the protocol, update `HANDOFF.md` and `docs/ARCHITECTURE.md`.
+- If you touch the protocol, update `docs/ARCHITECTURE.md`.
 
