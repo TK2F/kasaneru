@@ -190,10 +190,10 @@ Issue や Pull Request を歓迎します。詳しくは [CONTRIBUTING.md](CONTR
 
 Kasaneru が少しでもお役に立てれば嬉しいです。
 
-TK2LAB では「学びを楽しみ、発見を共有する」をモットーに、ツールを作っています。
-Kasaneru もそうした取り組みのひとつです。
+Kasaneru は、OBS でそのまま使えて、配信や発表の現場で扱いやすいオーバーレイセットとして開発しています。
+使いやすさ、安定性、ドキュメント、同梱アプリを継続的に改善しています。
 
-もしこの活動に共感いただけたら、[GitHub Sponsors](https://github.com/sponsors/tk2f) で応援いただけると励みになります。
+更新継続を後押ししたい場合は、[GitHub Sponsors](https://github.com/sponsors/tk2f) から支援いただけます。
 
 ---
 

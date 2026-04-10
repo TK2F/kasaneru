@@ -16,7 +16,7 @@ flowchart LR
   Browser -->|req on load| Dock
 ```
 
-（GitHub など Mermaid 非対応の環境向け: `docs/ARCHITECTURE-ascii.txt` も参照）
+（GitHub など Mermaid 非対応の環境では、Mermaid 図が表示されない場合があります。）
 
 - **dock.html**: 操作 UI。チャプター / TitleCard / 画像 / グループ / 設定。状態は `lt_ch_v5` に JSON 保存。
 - **overlay.html**: 透明背景。**論理レイアウト**は `#lt-stage` 内で **1920×1080px**。Browser Source の実サイズは `window` に合わせ **均等スケール（contain）＋中央**（`applyStageScale`）。詳細は [SPEC.md](./SPEC.md) / [BROADCAST-SETUP.md](./BROADCAST-SETUP.md)。

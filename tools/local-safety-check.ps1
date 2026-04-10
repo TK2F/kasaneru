@@ -13,14 +13,11 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $proj = Split-Path -Parent $here
 Set-Location -Path $proj
 
-# 1) Ensure no git remotes configured (local-only policy)
+# 1) Ensure git is available and repository is initialized
 try {
-  $remotes = git remote
-  if ($LASTEXITCODE -ne 0) { Fail "git remote failed" }
-  if ($remotes -and $remotes.Count -gt 0) {
-    Fail ("Git remotes are configured: {0}. Remove them to keep local-only." -f ($remotes -join ', '))
-  }
-  Ok "No git remotes configured"
+  git rev-parse --is-inside-work-tree *> $null
+  if ($LASTEXITCODE -ne 0) { Fail "git repo not initialized" }
+  Ok "Git repository detected"
 } catch {
   Fail "Git not available or repo not initialized"
 }
@@ -31,4 +28,3 @@ if ($LASTEXITCODE -ne 0) { Fail "security-scan.ps1 failed" }
 Ok "security-scan.ps1 passed"
 
 exit 0
-
