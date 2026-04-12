@@ -75,15 +75,43 @@ Download the latest `kasaneru-v*.zip` from the [Releases page](../../releases) a
 
 ---
 
-## Customization
+## Going Further with OBS
 
-Customize the overlay appearance with CSS. See [CUSTOM-CSS-GUIDE.md](CUSTOM-CSS-GUIDE.md).
+Once you've settled into using Kasaneru, you might start thinking: "What if I could show this?" or "I wish I had a widget for that." Here are a few ways to keep exploring.
+
+### Create Your Own Style
+
+A little CSS goes a long way. Change the accent color, swap the font, reshape the cards — small tweaks can completely change the feel of your stream. There's no right answer, so experiment until it looks like *yours*.
+
+See [CUSTOM-CSS-GUIDE.md](CUSTOM-CSS-GUIDE.md) for details (currently in Japanese; CSS variable names and selectors are all in English).
+
+### Build a Mini App
+
+If you know some HTML and a bit of JavaScript, you can build your own stream tool. A counter, a random topic picker, a comment viewer — whatever you can imagine. Start by copying the template at `templates/app/hello-world.html` and making it do something small.
+
+The full development spec is at [docs/APP-SPEC.md](docs/APP-SPEC.md).
+
+### Explore OBS Plugins
+
+OBS has a huge ecosystem of community plugins: scene transition effects, auto-captions, stream scheduling, and more. Once you're comfortable with the basics, browse the [OBS Forum Resources](https://obsproject.com/forum/resources/) or the plugin manager inside OBS. You'll be surprised at what's out there.
+
+Customizing your stream setup is half the fun — enjoy the process.
 
 ---
 
-## Build Your Own App
+## Quick Start (FAQ)
 
-Kasaneru supports custom apps. See `templates/app/hello-world.html` for a starter template and [docs/APP-SPEC.md](docs/APP-SPEC.md) for the development spec.
+**Q: Nothing appears on stream**
+A: Make sure "Local file" is **unchecked** in the Browser Source settings. The URL should start with `file:///`.
+
+**Q: Changes don't take effect**
+A: Open the Browser Source properties and click **Refresh cache**.
+
+**Q: Dock and overlay are out of sync**
+A: Both URLs must point to the **same folder**. Also confirm "Local file" is unchecked.
+
+**Q: Does it work on macOS / Linux?**
+A: Untested, but OBS Browser Source is Chromium-based, so it should work. Please open an [Issue](../../issues) if you find problems.
 
 ---
 
