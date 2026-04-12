@@ -37,7 +37,7 @@ OBS Browser Source uses Chromium internally, so it should work across platforms.
 | **Timer** | Countdown / count-up timer |
 | **Clock** | Digital clock with time zone support |
 | **Music Player** | BGM player with playlist and favorites |
-| **Roulette** | Wheel and reel-style roulette |
+| **Roulette** | Wheel style roulette |
 | **Rakugaki Draw** | Screen annotation tool (pen, shapes, pins, text) |
 | **Banner** | Scrolling or static text banner |
 | **TRPG Dice** | Polyhedral dice (d4-d100) with rock-paper-scissors |
