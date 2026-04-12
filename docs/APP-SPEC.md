@@ -364,7 +364,6 @@ Skin CSS variable naming convention:
 4. **Broadcasts UI actions via BroadcastChannel** (dock ctrl ↔ overlay display sync).
 5. Handles `lt_overlay_config` postMessage bridge (theme/accent sync).
 6. Uses transparent background.
-7. Fails safe in offline/blocked network conditions.
 
 ## 9. Current Built-in Apps (Reference)
 
@@ -372,13 +371,10 @@ Skin CSS variable naming convention:
 |---|---|---|
 | `timer.html` | A | `lt_app_timer` |
 | `clock.html` | C | `lt_app_clock` |
-| `now-playing.html` | B | `lt_app_nowplaying` |
-| `banner.html` | A | `lt_app_banner` |
+| `banner.html` | A | `lt_app_nagashi` |
 | `draw.html` | A | `lt_app_draw` |
-| `roulette.html` | A | `lt_app_roulette` |
-| `youtube-chat.html` | B/C | `lt_app_ytchat` |
+| `roulette.html` | A | `lt_app_kurukuru` |
 | `music-player.html` | C | `lt_app_music` |
-| `ai-chat.html` | A | `lt_app_aichat` |
 | `dice/dice.html` | A/C | `lt_app_dice` |
 
 ## 10. External API / Server Integration

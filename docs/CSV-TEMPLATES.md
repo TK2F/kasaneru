@@ -43,6 +43,25 @@
 | offsetX / offsetY | 任意 | 整数 |
 | fit | 任意 | `default` / `fit` / `overflow`（または true/false 相当） |
 
+### アプリ（`kasaneru-apps.csv`）
+
+| 列 | 必須 | 説明 |
+|----|------|------|
+| name | **必須** | アプリ表示名 |
+| url | **必須** | 表示 URL（`overlay.html` からの相対パス。例: `apps/timer.html`） |
+| ctrlUrl | 任意 | コントロール URL（空の場合、`url?ctrl=1&dock=1` にフォールバック） |
+| position | 任意 | 9 点アンカー（`tl` `tc` `tr` `cl` `center` `cr` `bl` `bc` `br` `full`）。省略時 `tr` |
+| offsetX / offsetY | 任意 | 整数（ピクセル）。省略時 0 |
+| width / height | 任意 | 整数（ピクセル）。省略時 480 / 320 |
+| zLayer | 任意 | 重なり順。省略時 50 |
+| opacity | 任意 | 0–100。省略時 100 |
+| animMode | 任意 | `default` / `fade` / `none` |
+| borderRadius | 任意 | 整数（px）。省略時 0 |
+| group | 任意 | グループ名 |
+| scale | 任意 | 百分率。省略時 100 |
+| interactive | 任意 | `1` = クリック可 / `0` = 表示のみ。省略時 0 |
+| themeSync | 任意 | `1` = テーマ同期 / `0` = しない。省略時 0 |
+
 ### UI・見た目（`kasaneru-ui-settings.csv`）
 
 | 列 | 必須 | 説明 |

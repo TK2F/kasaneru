@@ -7,6 +7,7 @@
 | `kasaneru-chapters.template.csv` | group, title, subtitle |
 | `kasaneru-titlecards.template.csv` | group, title, label, color, offsetX, offsetY |
 | `kasaneru-images.template.csv` | group, name, path, scale, offsetX, offsetY, fit |
+| `kasaneru-apps.template.csv` | name, url, ctrlUrl, position, offsetX, offsetY, width, height, zLayer, opacity, animMode, borderRadius, group, scale, interactive, themeSync |
 | `kasaneru-ui-settings.template.csv` | key, value |
 
 - **fit**（画像のみ）: `default` / `fit` / `overflow`

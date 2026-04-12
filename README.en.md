@@ -14,7 +14,6 @@
 **Kasaneru** (Japanese for "to layer/overlay") is a lightweight overlay toolkit for OBS Studio.
 
 - No build tools, no CDN, no dependencies
-- Works completely offline
 - Just unzip and configure OBS — that's it
 
 Perfect for online classes, lightning talks, TRPG sessions, and casual streaming.
@@ -136,12 +135,6 @@ Images in `apps/dice/images/` are AI-generated.
 - System fonts only (no font files bundled)
 
 See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for details.
-
----
-
-## Contributing
-
-Issues and Pull Requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
