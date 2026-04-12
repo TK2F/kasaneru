@@ -1,2 +1,1 @@
-// Auto-generated image manifest — run tools/generate-image-manifest.ps1 to update
-var IMAGE_MANIFEST = [];
+window.__LT_IMAGE_MANIFEST__ = {"version":1,"files":[]};
