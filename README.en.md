@@ -74,6 +74,42 @@ Download the latest `kasaneru-v*.zip` from the [Releases page](../../releases) a
 
 ---
 
+## How to Use
+
+Use the **LIVE / OFFLINE** toggle (top right of the dock) to control whether anything appears on stream. OFFLINE hides everything.
+
+### Chapters
+
+Cards that mark sections of your stream. Set a title and subtitle, then use the show button to display. Navigate with the left/right arrows.
+
+### Telop Cards
+
+Lower-third cards for speaker names or topic labels. Toggle with SHOW / HIDE.
+
+### Images
+
+Place images in the `images/` folder and add them from the dock. Useful for slides or logos. Each image group can have its own position and animation.
+
+### Apps
+
+Add apps from the "Apps" tab. Enter the relative path (e.g., `apps/timer.html`) as the URL.
+
+### Bundled App Guide
+
+| App | How to use |
+|-----|-----------|
+| **Timer** | Set duration in the control panel. Start / Pause / Reset. Supports countdown and count-up |
+| **Clock** | Just add it — displays immediately. Change time zone (UTC offset) in the control panel |
+| **Music Player** | Add music files to the playlist for BGM. Place files inside the kasaneru folder or use `file:///` paths |
+| **Roulette** | Enter choices in the control panel, click Spin. Stop manually to pick a result. Wheel and reel modes |
+| **Rakugaki Draw** | The control panel shows a drawing area. Use pen, shapes, pins, and text to annotate the screen. Enable OBS WebSocket to preview your stream output while drawing (see steps inside the control panel) |
+| **Banner** | Display scrolling or static text. Set text, speed, and position in the control panel |
+| **TRPG Dice** | Enter dice notation (e.g., `2d6+3`) and click Roll. Includes rock-paper-scissors mode |
+
+For detailed instructions, see [docs/OPERATION-GUIDE.md](docs/OPERATION-GUIDE.md).
+
+---
+
 ## Going Further with OBS
 
 Once you've settled into using Kasaneru, you might start thinking: "What if I could show this?" or "I wish I had a widget for that." Here are a few ways to keep exploring.
