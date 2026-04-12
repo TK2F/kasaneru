@@ -35,6 +35,29 @@ images/*
 music/*
 !music/.gitkeep
 
+# AI agent config / internal docs
+CLAUDE.md
+CODEX.md
+GEMINI.md
+*.skills.md
+skills/
+workflows/
+HANDOFF.md
+SESSION*.md
+ROADMAP*.md
+AI-*.md
+BUSINESS*.md
+RESTART*.md
+AGENT-*.md
+docs/AI-*.md
+docs/SESSION-*.md
+docs/ROADMAP-*.md
+docs/BUSINESS-*.md
+docs/RESTART-*.md
+docs/AGENT-*.md
+docs/SECURE-*.md
+captures/
+
 # Private
 private/
 .env
