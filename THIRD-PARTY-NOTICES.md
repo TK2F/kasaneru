@@ -44,5 +44,5 @@ This file is a **convenience summary** only. The actual license text is the sour
 ## Notes
 
 - This repository does **not** bundle font files.
-- All JavaScript and CSS are original work, with no external library dependencies.
+- All JavaScript and CSS in this repository were written without importing or bundling external libraries. Development was assisted by AI coding tools such as Claude Code, Codex, and Gemini CLI.
 - If you redistribute bundled fonts in the future, include the relevant license texts (OFL-1.1).
