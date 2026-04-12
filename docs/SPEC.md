@@ -4,7 +4,7 @@
 
 ## 1. 目的・スコープ
 
-- OBS Studio 上で、チャプター / TitleCard / 画像の **16:9 配信向けオーバーレイ** を、**追加インストールなし**（HTML + CSS + BroadcastChannel）で操作・表示する。
+- OBS Studio 上で、チャプター / TitleCard / 画像の **16:9 配信向けオーバーレイ** を、HTML + CSS + BroadcastChannel のみで操作・表示する。
 - 主に **YouTube / Twitch** で一般的な **720p / 1080p・16:9** 出力を想定する。**非 16:9 唯一パス**（例: ウルトラワイド単体キャンバス）は「表示は可能だが余白が出る」程度のサポートとする。
 
 ## 2. 座標系・解像度（重要）
@@ -21,7 +21,7 @@
 - **dock.html**: リスト編集、グループ、設定（テーマ、アクセント、レイヤー、オフセット、ガイド、**CSV（チャプター / タイトルカード / 画像・種別選択と置換インポート）**、Undo、編集ロック、i18n 等）。画面上部は **言語切替のみ（右寄せ）**。
 - **overlay.html**: `sync` / `hide` / TitleCard / 画像メッセージに応じた表示・アニメーション。
 - **永続化**: `localStorage` キー `lt_ch_v5`。
-- **制約**: ES5、CDN 禁止（`CLAUDE.md` 参照）。
+- **制約**: ES5、CDN 禁止（OBS CEF の互換性のため）。
 
 ## 4. 非機能要件
 
@@ -48,5 +48,4 @@
 - [CSV-TEMPLATES.md](./CSV-TEMPLATES.md) — CSV 列・スプレッドシート手順
 - [BROADCAST-SETUP.md](./BROADCAST-SETUP.md) — OBS 解像度のおすすめ
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — 通信・構成
-- [CLAUDE.md](../CLAUDE.md) — 開発ルール
 
