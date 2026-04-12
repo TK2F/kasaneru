@@ -167,7 +167,7 @@ Images in `apps/dice/images/` are AI-generated.
 ## Credits
 
 - Developed by **TK2LAB**
-- No external libraries (fully self-contained)
+- No external libraries
 - System fonts only (no font files bundled)
 
 See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for details.
@@ -176,9 +176,4 @@ See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for details.
 
 ## Support
 
-We hope Kasaneru helps you.
-
-Kasaneru is developed as a practical overlay toolkit for OBS with minimal setup.
-The project focuses on usability, stability, documentation, and bundled apps.
-
-If you want to help sustain ongoing improvements, you can support the project via [GitHub Sponsors](https://github.com/sponsors/tk2f).
+If you like Kasaneru, it would mean a lot if you could support the project via [GitHub Sponsors](https://github.com/sponsors/tk2f).

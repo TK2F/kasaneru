@@ -192,7 +192,7 @@ MIT License — 詳しくは [LICENSE](LICENSE) を参照してください。
 ## クレジット
 
 - 開発: **TK2LAB**
-- 外部ライブラリ: なし（完全自己完結）
+- 外部ライブラリ: なし
 - 使用フォント: システムフォントのみ（フォントファイルは同梱していません）
 
 詳しくは [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) を参照してください。
@@ -201,12 +201,7 @@ MIT License — 詳しくは [LICENSE](LICENSE) を参照してください。
 
 ## サポート / Support
 
-Kasaneru が少しでもお役に立てれば嬉しいです。
-
-Kasaneru は、OBS でそのまま使えて、配信や発表の現場で扱いやすいオーバーレイセットとして開発しています。
-使いやすさ、安定性、ドキュメント、同梱アプリを継続的に改善しています。
-
-更新継続を後押ししたい場合は、[GitHub Sponsors](https://github.com/sponsors/tk2f) から支援いただけます。
+Kasaneru を気に入ってもらえたら、[GitHub Sponsors](https://github.com/sponsors/tk2f) で応援してもらえるとすごく嬉しいです。
 
 ---
 
