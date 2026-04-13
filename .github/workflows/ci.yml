@@ -54,33 +54,7 @@ jobs:
           "
 
       - name: Check for ES6+ in core files (dock/overlay must be ES5)
-        run: |
-          echo "=== ES5 compliance check for core files ==="
-          failed=0
-          for f in dock.html overlay.html; do
-            if [ ! -f "$f" ]; then
-              echo "SKIP: $f not found"
-              continue
-            fi
-            # Arrow functions: () => or x =>
-            if grep -Pn '=>' "$f" | grep -v '//.*=>' | grep -v '<!--' | head -5; then
-              echo "WARNING: Possible arrow function in $f (verify manually)"
-            fi
-            # const/let declarations
-            if grep -Pn '^\s*(const|let)\s' "$f" | head -5; then
-              echo "FAIL: const/let found in $f"
-              failed=1
-            fi
-            # Template literals
-            if grep -Pn '`[^`]*\$\{' "$f" | head -5; then
-              echo "FAIL: Template literal found in $f"
-              failed=1
-            fi
-          done
-          if [ $failed -eq 0 ]; then
-            echo "  OK: Core files ES5 compliant"
-          fi
-          exit $failed
+        run: node .github/scripts/check-es5.js
 
       - name: Check internal docs not leaked to main
         if: github.ref == 'refs/heads/main'
@@ -141,12 +115,16 @@ jobs:
           echo "=== Scanning for accidental secrets ==="
           failed=0
           # Check for hardcoded paths with usernames
-          if grep -rn '/home/tk2lab\|/mnt/c/Users\|C:\\Users' --include='*.html' --include='*.js' --include='*.md' --include='*.json' . 2>/dev/null | grep -v '.git/' | grep -v 'internal/' | head -5; then
+          matches=$(grep -rn --exclude-dir=.git --exclude-dir=internal --exclude-dir=.github '/home/tk2lab\|/mnt/c/Users\|C:\\Users' --include='*.html' --include='*.js' --include='*.md' --include='*.json' . 2>/dev/null | grep -v '.git/' | grep -v 'internal/' || true)
+          if [ -n "$matches" ]; then
+            echo "$matches" | head -5
             echo "FAIL: Personal paths found in public files"
             failed=1
           fi
           # Check for API keys / tokens patterns
-          if grep -rPn '(api[_-]?key|secret|token|password)\s*[:=]\s*["\x27][^"\x27]{8,}' --include='*.html' --include='*.js' --include='*.json' . 2>/dev/null | grep -v '.git/' | grep -v 'internal/' | head -5; then
+          matches=$(grep -rPn --exclude-dir=.git --exclude-dir=internal --exclude-dir=.github '(api[_-]?key|secret|token|password)\s*[:=]\s*["\x27][^"\x27]{8,}' --include='*.html' --include='*.js' --include='*.json' . 2>/dev/null | grep -v '.git/' | grep -v 'internal/' || true)
+          if [ -n "$matches" ]; then
+            echo "$matches" | head -5
             echo "FAIL: Possible secrets found"
             failed=1
           fi
