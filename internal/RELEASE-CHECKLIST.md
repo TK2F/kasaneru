@@ -1,6 +1,6 @@
 # Kasaneru Release Checklist
 
-## Before merging dev → main
+## Before promoting dev changes to main
 
 - [ ] `internal/` ディレクトリが main に入らないことを確認
 - [ ] `CLAUDE.md`, `codex.md` が main に入らないことを確認
@@ -23,15 +23,28 @@
 
 ## Release
 
-1. `git checkout main`
-2. `git merge dev` (内部ドキュメントは .gitignore で除外されるため入らない)
-   - **注意**: merge 後に `internal/` が含まれないか `git status` で確認
-3. `git archive --format=zip --prefix=kasaneru/ -o kasaneru-vX.Y.Z.zip HEAD`
-4. ZIP を展開して CLAUDE.md, CONTRIBUTING.md, internal/ が含まれないことを確認
-5. `gh release create vX.Y.Z kasaneru-vX.Y.Z.zip --title "Kasaneru vX.Y.Z" --notes "..."`
-6. `git push origin main`
+1. 対象コミットを特定: `git log main..dev --oneline`
+2. `git checkout main`
+3. 公開対象のコミットを cherry-pick:
+   ```
+   git cherry-pick <sha1> <sha2> ...
+   ```
+   **NEVER run `git merge dev`** — internal/ と CLAUDE.md が main に漏洩する
+   （.gitignore は tracked ファイルのマージを防げない）
+4. 検証スクリプト実行:
+   ```
+   bash internal/scripts/verify-main.sh
+   ```
+   ※ スクリプトは dev にのみ存在。main checkout 前にコピーするか、
+   dev worktree から実行: `git -C /path/to/dev-worktree show dev:internal/scripts/verify-main.sh | bash`
+5. `git archive --format=zip --prefix=kasaneru/ -o kasaneru-vX.Y.Z.zip HEAD`
+6. ZIP を展開して CLAUDE.md, CONTRIBUTING.md, internal/ が含まれないことを確認
+7. `gh release create vX.Y.Z kasaneru-vX.Y.Z.zip --title "Kasaneru vX.Y.Z" --notes "..."`
+8. `PUSH=1 PUSH_MAIN=1 git push origin main`
+   （pre-push フックが自動で5項目チェックを実行）
 
 ## Post-release
 
 - [ ] リリースページの ZIP をダウンロードして展開テスト
 - [ ] OBS で dock.html / overlay.html を開いて基本動作確認
+- [ ] `git checkout dev` に戻る
