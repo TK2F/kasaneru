@@ -403,18 +403,82 @@ Apps that connect to external servers (LLM APIs, etc.) **MUST** follow these rul
 |---|---|---|---|
 | (Reserved for future AI voice integration) | — | — | Voicevox/TTS removed from dice in v18 |
 
-## 11. Validation Before Merge
+## 11. OBS/CEF Pitfalls — What NOT To Do
+
+OBS Browser Source uses Chromium Embedded Framework (CEF) with `file://` origin. The following patterns **will break or cause hard-to-debug issues**:
+
+### 11.1 Forbidden APIs and Patterns
+
+| Pattern | Why it fails | Alternative |
+|---------|-------------|-------------|
+| `backdrop-filter: blur()` | Not supported in OBS Browser Source | Use solid `rgba()` background |
+| `prompt()` / `alert()` / `confirm()` | OBS CEF blocks modal dialogs | Custom HTML modal |
+| `a.click()` with `download` attribute | OBS CEF cannot download files | Use OBS screenshot (right-click → Screenshot) |
+| `crypto.subtle` | May be unavailable on `file://` origin | Avoid or provide fallback |
+| `new URL()` with `file://wsl$` paths | URL constructor corrupts WSL paths | Use string manipulation |
+| CDN / external `@import url('https://...')` | OBS CEF may block external requests | Bundle all assets locally |
+
+### 11.2 Cross-Process Communication
+
+**BroadcastChannel does NOT work across OBS processes.** The dock (custom browser dock) and overlay (Browser Source) run in separate CEF processes. `BroadcastChannel` only works within the same process.
+
+```
+dock.html ──BC──> dock iframe (ctrl)     ← Same process, BC works
+overlay.html ──BC──> overlay iframe      ← Same process, BC works
+dock.html ──BC──✗──> overlay.html        ← DIFFERENT process, BC fails
+```
+
+**Solution**: Use the built-in postMessage relay chain. Apps call `bcSend()` which automatically bridges via `postMessage` → `dock.html` → `lt_chapter` BC → `overlay.html` → `postMessage` → app iframe.
+
+**Do NOT** attempt direct `BroadcastChannel` between dock and overlay iframes — it will silently fail.
+
+### 11.3 DOM Movement on Transparent Background
+
+**Do NOT move DOM elements after initial placement** on the overlay surface. OBS CEF's GPU compositor may leave permanent ghost artifacts at the original position. This is an OBS/CEF bug, not a Kasaneru issue.
+
+**Safe pattern**: Delete the element and create a new one at the desired position.
+
+```javascript
+// BAD: moving element
+el.style.left = newX + 'px';
+
+// GOOD: recreate element
+el.remove();
+var newEl = createElementAt(newX, newY);
+container.appendChild(newEl);
+```
+
+### 11.4 Error Display Rules
+
+- **NEVER** show error messages on the overlay (broadcast screen) — viewers will see them.
+- Errors go to `console.warn()` / `console.error()` only.
+- Control panel (`?ctrl=1`) MAY show errors inline.
+
+### 11.5 Timer and Listener Cleanup
+
+- Clear all `setInterval` / `setTimeout` in `beforeunload` handler.
+- Close `BroadcastChannel` in `beforeunload`.
+- Prefer event delegation over per-element `addEventListener` for dynamic content.
+
+```javascript
+window.addEventListener('beforeunload', function() {
+  if (interval) clearInterval(interval);
+  if (ch) { try { ch.close(); } catch(e) {} }
+});
+```
+
+## 12. Validation Before Merge
 
 - Syntax check app script.
 - Manual run in browser (standalone).
 - Manual run in dock + overlay with app visibility flow.
 - Confirm no blocking errors when BroadcastChannel unavailable.
 
-## 12. App Manifest (`apps/manifest.json`) — v2
+## 13. App Manifest (`apps/manifest.json`) — v2
 
 The manifest declares all bundled apps and their metadata for dock preset selection and automated tooling.
 
-### 12.1 Format
+### 13.1 Format
 
 ```json
 {
@@ -425,7 +489,7 @@ The manifest declares all bundled apps and their metadata for dock preset select
 
 **Backward compatibility**: v1 (a plain JSON array) is still accepted — the dock detects the format automatically.
 
-### 12.2 AppEntry Schema
+### 13.2 AppEntry Schema
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
@@ -440,7 +504,7 @@ The manifest declares all bundled apps and their metadata for dock preset select
 | `features` | string[] | MAY | `[]` | Capabilities: `"broadcastChannel"`, `"stateSync"`, `"postMessage"`, `"themeable"`. |
 | `requirements` | object | MAY | `{}` | External dependencies. `{ externalService: "LLM API" }` etc. |
 
-### 12.3 Usage by Dock
+### 13.3 Usage by Dock
 
 When the user selects an app from the preset picker:
 
@@ -449,6 +513,6 @@ When the user selects an app from the preset picker:
 3. `defaultSize.width` / `defaultSize.height` → size fields (v2 only)
 4. Other fields are informational — the user can override any value before adding.
 
-### 12.4 Extending the Manifest
+### 13.4 Extending the Manifest
 
 Third-party apps can be added to the manifest array. All fields except `id`, `name`, and `path` are optional — the dock applies sensible defaults for missing fields.

@@ -20,9 +20,9 @@ macOS および Linux（非 WSL2）環境では実機テストを行っていま
 
 Draw アプリは `mousedown` / `mousemove` / `mouseup` イベントのみ対応しています。タブレットやタッチスクリーンでは動作しません。将来バージョンで Pointer Events API への移行を検討しています。
 
-### Roulette / Dice: メモリ管理 (PARTIAL)
+### Roulette / Dice: メモリ管理
 
-Roulette と Dice アプリは、一部のイベントリスナーが描画ごとに再登録される実装があります。長時間の連続使用でメモリ使用量が増加する可能性があります。通常の使用（数時間程度）では問題ありません。
+Roulette と Dice アプリでは、リスト再描画時に `innerHTML = ''` で DOM を破棄し古いリスナーを自動回収しています。アニメーション用の `requestAnimationFrame` も `cancelAnimationFrame` で適切にクリーンアップされます。通常の使用では問題ありません。
 
 ### Draw: 注釈データの永続化なし
 

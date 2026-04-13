@@ -1,0 +1,156 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate JSON files
+        run: |
+          echo "=== Validating JSON files ==="
+          failed=0
+          for f in $(find . -name '*.json' -not -path './.git/*'); do
+            if ! node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))"; then
+              echo "FAIL: $f"
+              failed=1
+            else
+              echo "  OK: $f"
+            fi
+          done
+          exit $failed
+
+      - name: Check app manifest consistency
+        run: |
+          echo "=== Checking app manifest ==="
+          node -e "
+            const manifest = JSON.parse(require('fs').readFileSync('apps/manifest.json','utf8'));
+            const fs = require('fs');
+            let failed = 0;
+            for (const app of manifest.apps) {
+              if (!fs.existsSync(app.path)) {
+                console.error('MISSING: ' + app.path + ' (id: ' + app.id + ')');
+                failed = 1;
+              } else {
+                console.log('  OK: ' + app.path);
+              }
+              if (!app.id || !app.name || !app.path) {
+                console.error('INCOMPLETE: app entry missing required fields', app);
+                failed = 1;
+              }
+            }
+            process.exit(failed);
+          "
+
+      - name: Check for ES6+ in core files (dock/overlay must be ES5)
+        run: |
+          echo "=== ES5 compliance check for core files ==="
+          failed=0
+          for f in dock.html overlay.html; do
+            if [ ! -f "$f" ]; then
+              echo "SKIP: $f not found"
+              continue
+            fi
+            # Arrow functions: () => or x =>
+            if grep -Pn '=>' "$f" | grep -v '//.*=>' | grep -v '<!--' | head -5; then
+              echo "WARNING: Possible arrow function in $f (verify manually)"
+            fi
+            # const/let declarations
+            if grep -Pn '^\s*(const|let)\s' "$f" | head -5; then
+              echo "FAIL: const/let found in $f"
+              failed=1
+            fi
+            # Template literals
+            if grep -Pn '`[^`]*\$\{' "$f" | head -5; then
+              echo "FAIL: Template literal found in $f"
+              failed=1
+            fi
+          done
+          if [ $failed -eq 0 ]; then
+            echo "  OK: Core files ES5 compliant"
+          fi
+          exit $failed
+
+      - name: Check internal docs not leaked to main
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "=== Checking main branch cleanliness ==="
+          failed=0
+          for f in internal/ HANDOFF.md SESSION*.md; do
+            if [ -e "$f" ]; then
+              echo "FAIL: $f should not exist on main branch"
+              failed=1
+            fi
+          done
+          # Check .gitignore blocks internal files
+          if ! grep -q 'internal/' .gitignore 2>/dev/null; then
+            echo "FAIL: .gitignore must block internal/"
+            failed=1
+          fi
+          if [ $failed -eq 0 ]; then
+            echo "  OK: No internal docs on main"
+          fi
+          exit $failed
+
+      - name: Check for broken doc references
+        run: |
+          echo "=== Checking markdown link targets ==="
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const glob = require('child_process')
+              .execSync('find . -name \"*.md\" -not -path \"./.git/*\" -not -path \"./internal/*\"')
+              .toString().trim().split('\n').filter(Boolean);
+            let failed = 0;
+            const linkRe = /\[([^\]]*)\]\(([^)]+)\)/g;
+            for (const file of glob) {
+              const content = fs.readFileSync(file, 'utf8');
+              let match;
+              while ((match = linkRe.exec(content)) !== null) {
+                const target = match[2];
+                // Skip external URLs, anchors, mailto, and GitHub relative links (../../issues etc)
+                if (target.startsWith('http') || target.startsWith('#') || target.startsWith('mailto:')) continue;
+                if (target.startsWith('../../') && ['issues', 'releases', 'pulls', 'discussions'].some(s => target.includes(s))) continue;
+                // Strip anchor from path
+                const filePath = target.split('#')[0];
+                if (!filePath) continue;
+                const resolved = path.resolve(path.dirname(file), filePath);
+                if (!fs.existsSync(resolved)) {
+                  console.error('BROKEN LINK: ' + file + ' -> ' + target);
+                  failed = 1;
+                }
+              }
+            }
+            if (failed === 0) console.log('  OK: All local links resolve');
+            process.exit(failed);
+          "
+
+      - name: Check for accidental secrets patterns
+        run: |
+          echo "=== Scanning for accidental secrets ==="
+          failed=0
+          # Check for hardcoded paths with usernames
+          if grep -rn '/home/tk2lab\|/mnt/c/Users\|C:\\Users' --include='*.html' --include='*.js' --include='*.md' --include='*.json' . 2>/dev/null | grep -v '.git/' | grep -v 'internal/' | head -5; then
+            echo "FAIL: Personal paths found in public files"
+            failed=1
+          fi
+          # Check for API keys / tokens patterns
+          if grep -rPn '(api[_-]?key|secret|token|password)\s*[:=]\s*["\x27][^"\x27]{8,}' --include='*.html' --include='*.js' --include='*.json' . 2>/dev/null | grep -v '.git/' | grep -v 'internal/' | head -5; then
+            echo "FAIL: Possible secrets found"
+            failed=1
+          fi
+          if [ $failed -eq 0 ]; then
+            echo "  OK: No secrets detected"
+          fi
+          exit $failed
