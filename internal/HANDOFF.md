@@ -1,10 +1,10 @@
 # Kasaneru Public Repo — HANDOFF
 
-Last updated: 2026-04-12 (post-audit release)
+Last updated: 2026-04-13 (merge safety)
 
 ## Current State
 
-- **GitHub**: https://github.com/TK2F/kasaneru (currently **private**)
+- **GitHub**: https://github.com/TK2F/kasaneru (**PUBLIC** since 2026-04-13)
 - **Release**: v1.0.0 — https://github.com/TK2F/kasaneru/releases/tag/v1.0.0
 - **Branch**: `main` (public clean) / `dev` (development + internal docs)
 - **Source**: `/home/tk2lab/code/kasaneru/`
@@ -21,6 +21,35 @@ Last updated: 2026-04-12 (post-audit release)
 - `lt_app_*` (app BroadcastChannel)
 - `lt_ch_v5` (localStorage key)
 - `lt_overlay_config` / `lt_overlay_control` (postMessage commands)
+
+## Session 2026-04-13 — Merge Safety & Branch Workflow
+
+### What was done
+
+**Critical bug found & fixed:**
+- `git merge dev` on main would leak `internal/`, `CLAUDE.md`, and relaxed `.gitignore` into public repo
+- `.gitignore` does NOT prevent tracked files from being merged — RELEASE-CHECKLIST had this wrong
+- Replaced all merge instructions with cherry-pick only workflow
+
+**Pre-push hook enhanced** (`~/.git-hooks/pre-push`):
+- 3-tier protection: all repos require `PUSH=1`, kasaneru main additionally requires `PUSH_MAIN=1`
+- kasaneru main auto-checks: no internal/, no CLAUDE.md, strict .gitignore, no Co-Authored-By, no personal paths
+
+**verify-main.sh created** (`internal/scripts/verify-main.sh`):
+- Standalone verification script with same 5 checks as pre-push hook
+- Run before push for early feedback
+
+**Documentation updated:**
+- `internal/RELEASE-CHECKLIST.md` — replaced `git merge dev` with cherry-pick workflow
+- `internal/README.md` — workflow section rewritten
+- `CLAUDE.md` — added merge prohibition and verify-main.sh reference
+- lt-overlay `CLAUDE.md` / `HANDOFF.md` — cross-reference updated, session prompt template added
+
+### Learnings
+
+1. **`.gitignore` does not prevent merge of tracked files**: This is a fundamental git behavior. Once files are committed on a branch, merging that branch brings those files regardless of `.gitignore`. The only safe way to promote changes is cherry-pick.
+2. **Defense in depth for public repos**: Three layers (Claude Code deny rules → pre-push hook → documentation) catch errors at different stages.
+3. **Automated checks at push time**: The pre-push hook runs checks that humans forget. Even with a checklist, automation is more reliable.
 
 ## Session 2026-04-12 — Quality Audit & Release Fixes
 
@@ -70,7 +99,8 @@ Last updated: 2026-04-12 (post-audit release)
 
 ## Next Steps
 
-- [ ] Make repo public when ready
+- [x] Make repo public (2026-04-13)
+- [x] Merge safety — cherry-pick only workflow (2026-04-13)
 - [ ] OBS 実機テスト (v17-v21 の全変更)
 - [ ] テスト自動化 (Playwright)
 - [ ] CUSTOM-CSS-GUIDE 英語版
