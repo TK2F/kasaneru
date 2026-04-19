@@ -13,10 +13,10 @@ This file is a **convenience summary** only. The actual license text is the sour
 ### 1) Rock-Paper-Scissors Images (AI-generated)
 
 - **Files**: `apps/dice/images/rock.png`, `paper.png`, `scissors.png`
-- **Copyright**: TK2LAB
+- **Copyright**: TK2Works
 - **Generated with**: Google Flow (NanoBanana Pro model)
 - **License**: Included under this project's MIT License
-- **Note**: These images are AI-generated content. Copyright is retained by TK2LAB.
+- **Note**: These images are AI-generated content. Copyright is retained by TK2Works.
 
 ---
 

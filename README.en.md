@@ -158,7 +158,7 @@ MIT License. See [LICENSE](LICENSE).
 
 Images in `apps/dice/images/` are AI-generated.
 
-- Copyright: TK2LAB
+- Copyright: TK2Works
 - Generated with: Google Flow (NanoBanana Pro model)
 - Licensed under MIT (free to use)
 
@@ -166,7 +166,7 @@ Images in `apps/dice/images/` are AI-generated.
 
 ## Credits
 
-- Developed by **TK2LAB**
+- Developed by **TK2Works**
 - No external libraries
 - System fonts only (no font files bundled)
 

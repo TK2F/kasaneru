@@ -186,7 +186,7 @@ MIT License — 詳しくは [LICENSE](LICENSE) を参照してください。
 
 `apps/dice/images/` 内のじゃんけん画像（rock.png, paper.png, scissors.png）は **AI 生成画像** です。
 
-- 著作権: TK2LAB
+- 著作権: TK2Works
 - 生成ツール: Google Flow (NanoBanana Pro モデル)
 - ライセンス: MIT License に含まれます（自由に使用可能）
 
@@ -194,7 +194,7 @@ MIT License — 詳しくは [LICENSE](LICENSE) を参照してください。
 
 ## クレジット
 
-- 開発: **TK2LAB**
+- 開発: **TK2Works**
 - 外部ライブラリ: なし
 - 使用フォント: システムフォントのみ（フォントファイルは同梱していません）
 
