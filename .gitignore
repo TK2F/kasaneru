@@ -8,6 +8,7 @@ Thumbs.db
 .claude/
 .codex/
 .vscode/
+CLAUDE.md
 
 # Logs / temp
 *.log
@@ -59,6 +60,7 @@ docs/SECURE-*.md
 captures/
 
 # Private
+internal/
 private/
 .env
 *.key
