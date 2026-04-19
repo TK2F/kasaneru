@@ -115,7 +115,7 @@ jobs:
           echo "=== Scanning for accidental secrets ==="
           failed=0
           # Check for hardcoded paths with usernames
-          matches=$(grep -rn --exclude-dir=.git --exclude-dir=internal --exclude-dir=.github '/home/tk2lab\|/mnt/c/Users\|C:\\Users' --include='*.html' --include='*.js' --include='*.md' --include='*.json' . 2>/dev/null | grep -v '.git/' | grep -v 'internal/' || true)
+          matches=$(grep -rnE --exclude-dir=.git --exclude-dir=internal --exclude-dir=.github '/home/[^/]+|/mnt/c/Users|C:\\Users' --include='*.html' --include='*.js' --include='*.md' --include='*.json' . 2>/dev/null | grep -v '.git/' | grep -v 'internal/' || true)
           if [ -n "$matches" ]; then
             echo "$matches" | head -5
             echo "FAIL: Personal paths found in public files"
