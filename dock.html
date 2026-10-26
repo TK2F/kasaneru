@@ -3560,10 +3560,37 @@ body.dock-light #app-list-wrap { box-shadow: var(--dock-elev); }
     }, 50);
   }
 
-  /* Relay draw commands from app ctrl iframe → overlay via lt_chapter BC */
+  /* App controller message source checks. Keep ES5 for OBS CEF. */
+  var appCtrlPopouts = [];
+
+  function appControllerSourceMatches(ev, sourceWindow, sourceUrl) {
+    if (!ev || !sourceWindow || ev.source !== sourceWindow || !sourceUrl) return false;
+    try {
+      var expected = new URL(sourceUrl, window.location.href);
+      if (expected.protocol === 'file:') {
+        /* Opaque origin alone is not trusted: source must be the registered window. */
+        return ev.origin === 'null';
+      }
+      if (expected.protocol !== 'https:' && expected.protocol !== 'http:') return false;
+      return ev.origin === expected.origin;
+    } catch (e) { return false; }
+  }
+
+  function isTrustedAppController(ev) {
+    if (appCtrlIframe && appControllerSourceMatches(ev, appCtrlIframe.contentWindow, appCtrlIframe.src)) return true;
+    if (appCtrlIframeMusic && appControllerSourceMatches(ev, appCtrlIframeMusic.contentWindow, appCtrlIframeMusic.src)) return true;
+    for (var i = appCtrlPopouts.length - 1; i >= 0; i--) {
+      var entry = appCtrlPopouts[i];
+      if (entry.win.closed) { appCtrlPopouts.splice(i, 1); continue; }
+      if (appControllerSourceMatches(ev, entry.win, entry.url)) return true;
+    }
+    return false;
+  }
+
+  /* Relay draw commands from registered app controllers → overlay via lt_chapter BC */
   window.addEventListener('message', function(ev) {
     var d = ev && ev.data;
-    if (!d) return;
+    if (!d || typeof d !== 'object' || Array.isArray(d) || !isTrustedAppController(ev)) return;
     if (d.type === 'lt_draw_cmd' && d.data) {
       if (channel) {
         try { channel.postMessage({ cmd: 'draw_relay', data: d.data }); } catch(e) {}
@@ -8371,6 +8398,12 @@ body.dock-light #app-list-wrap { box-shadow: var(--dock-elev); }
     try {
       var w = window.open(appCtrlCurrentUrl, '_blank', 'width=420,height=620,menubar=no,toolbar=no');
       if (!w) toast(uiLang === 'ja' ? 'ポップアップがブロックされました' : 'Popup blocked');
+      else {
+        for (var p = appCtrlPopouts.length - 1; p >= 0; p--) {
+          if (appCtrlPopouts[p].win.closed) appCtrlPopouts.splice(p, 1);
+        }
+        appCtrlPopouts.push({ win: w, url: appCtrlCurrentUrl });
+      }
     } catch(e) { toast(uiLang === 'ja' ? 'ポップアウト失敗' : 'Pop-out failed'); }
   });
   /* Ctrl mode: back to list */
